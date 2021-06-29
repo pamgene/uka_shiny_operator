@@ -3,6 +3,8 @@ library(tercen)
 library(dplyr)
 library(tidyr)
 library(shinyjs)
+library(parallel)
+source("upstream_analysis.R")
 
 ############################################
 #### This part should not be included in ui.R and server.R scripts
@@ -13,6 +15,12 @@ getCtx <- function(session) {
   #options("tercen.stepId"= "2b6d9fbf-25e4-4302-94eb-b9562a066aa5")
   #options("tercen.username"= "admin")
   #options("tercen.password"= "admin")
+  
+  options("tercen.serviceUri"="https://tercen.com/")
+  options("tercen.username"= "ginberg")
+  options("tercen.password"= 'w:~9u203-@,uL[zi5q{!N_$uN+_"R:y6FSmZ&6`mujgTE/]=')
+  options("tercen.workflowId"= "4629c134b09c53160ea461e75fe42d12")
+  options("tercen.stepId"= "2d17de25-3d52-4964-8ac4-1f514af62a93")
   ctx <- tercenCtx()
   return(ctx)
 }
@@ -102,20 +110,20 @@ server <- shinyServer(function(input, output, session) {
     }
   }
   
-  # TODO database connection
-  #DB = UpstreamApp::UpstreamDatabase
-  #nid = showNotification("Press Start to start the analysis.", duration = NULL, type = "message", closeButton = FALSE)
-  #updateSliderInput(session, "seqHom", min = min(DB$PepProtein_SeqHomology))
+  # read database file
+  DB  <- readRDS("db2.rds")
+  nid <- showNotification("Press Start to start the analysis.", duration = NULL, type = "message", closeButton = FALSE)
+  updateSliderInput(session, "seqHom", min = min(DB$PepProtein_SeqHomology))
   
   observe({
     ctx  <- getCtx(session)
-    data <- dataInput()
-    prop <- propertiesInput()
+    data_input <- dataInput()
+    properties <- propertiesInput()
     
-    if (is.null(getProperties)) return()
-    updateSelectInput(session, "kinasefamily", selected = prop$Kinase_family)
+    if (is.null(properties)) return()
+    updateSelectInput(session, "kinasefamily", selected = properties$Kinase_family)
     
-    if (is.null(data)) return()
+    if (is.null(data_input)) return()
     
     if (length(ctx$cnames) > 0) {
       # poptions = data$colorColumnNames
@@ -124,9 +132,9 @@ server <- shinyServer(function(input, output, session) {
       updateSelectInput(session, "pairingFactor", choices = poptions)
     }
     output$status = renderText({
-      grp = getGroupingLabel(data)
+      grp = getGroupingLabel(data_input)
       if (input$start == 0){
-        if(prop$Lock_kinase_family == "Yes"){
+        if(properties$Lock_kinase_family == "Yes"){
           shinyjs::disable("kinasefamily")
         }
         if (!is.null(grp)){
@@ -146,53 +154,51 @@ server <- shinyServer(function(input, output, session) {
       shinyjs::disable("usePairing")
       shinyjs::disable("pairingFactor")
       
-      if(!data$hasUniqueDataMapping) stop("Mapping error: not all input data is unique")
+      # TODO checks
+      # if(!data$hasUniqueDataMapping) stop("Mapping error: not all input data is unique")
+      # if(data$hasMissingCells) stop("Missing values are not allowed.")
+      # if(data$getMaxNPerCell() > 1) stop("More than one value per cell in the cross-tab view is not allowed.")
       
-      if(data$hasMissingCells) stop("Missing values are not allowed.")
+      df <- data_input$data
       
-      if(data$getMaxNPerCell() > 1) stop("More than one value per cell in the cross-tab view is not allowed.")
-      
-      
-      
-      df = data$getData()
-      
-      if(data$hasZeroScaleRows){
-        zIdx = data$getZeroScaleRows()
-        df = df %>% filter (!(rowSeq %in% zIdx))
-        msg = paste("Warning:", length(zIdx), "peptides with zero scale have been removed from the data")
+      if (!is.null(data_input$hasZeroScaleRows) && data_input$hasZeroScaleRows) {
+        zIdx <- data_input$getZeroScaleRows()
+        df   <- df %>% filter (!(rowSeq %in% zIdx))
+        msg  <- paste("Warning:", length(zIdx), "peptides with zero scale have been removed from the data")
         showNotification(ui = msg, duration = NULL, type = "warning")
       } 
       
-      if(input$kinasefamily == "PTK"){
-        DB = DB %>% filter(PepProtein_Residue == "Y")
+      if (input$kinasefamily == "PTK") {
+        DB <- DB %>% filter(PepProtein_Residue == "Y")
       } else if(input$kinasefamily == "STK") {
-        DB = DB %>% filter(PepProtein_Residue == "S" |  PepProtein_Residue == "T")
+        DB <- DB %>% filter(PepProtein_Residue == "S" |  PepProtein_Residue == "T")
       } else {
         stop("Unknown value for kinase family")
       }
       
-      DB = DB %>% filter(PepProtein_SeqHomology >= input$seqHom) 
-      DB = DB %>% filter(Kinase_PKinase_PredictorVersion2Score >= input$minPScore | Database == "iviv")
-      DB = DB %>% filter(Kinase_Rank <= input$scan[2])
+      DB <- DB %>% 
+        filter(PepProtein_SeqHomology >= input$seqHom)  %>%
+        filter(Kinase_PKinase_PredictorVersion2Score >= input$minPScore | Database == "iviv") %>%
+        filter(Kinase_Rank <= input$scan[2])
       
-      nCores = detectCores()
-      msg = paste("Please wait ... running analysis. Using", nCores, "cores.")
+      nCores <- detectCores()
+      msg    <- paste("Please wait ... running analysis. Using", nCores, "cores.")
       showNotification(ui = msg, id = nid, type = "message", closeButton = FALSE, duration = NULL)
       
-      if(input$seed){
+      if (input$seed) {
         set.seed(42)
       }
       
-      if(!is.null(grp)){
-        df$grp = as.factor(df[[grp]])
-        aResult = pgScanAnalysis2g(df,  dbFrame = DB,
+      if (!is.null(grp)) {
+        df$grp <- as.factor(df$color)
+        result <- pgScanAnalysis2g(df, dbFrame = DB,
                                    scanRank = input$scan[1]:input$scan[2],
                                    nPermutations = input$nperms,
                                    dbWeights = c(iviv = input$wIviv,
                                                  PhosphoNET = input$wPhosphoNET
                                    ))
       } else {
-        aResult = pgScanAnalysis0(df,  dbFrame = DB,
+        result <- pgScanAnalysis0(df, dbFrame = DB,
                                   scanRank = input$scan[1]:input$scan[2],
                                   nPermutations = input$nperms,
                                   dbWeights = c(iviv = input$wIviv,
@@ -200,20 +206,21 @@ server <- shinyServer(function(input, output, session) {
                                   ))
       }
       showNotification(ui = "Done", id = nid, type = "message", closeButton = FALSE)
-      aFull = ldply(aResult, .fun = function(.)return(data.frame(.$aResult, mxRank = .$mxRank) ))
-      
+      full_result <- ldply(result, .fun = function(.) return(data.frame(.$result, mxRank = .$mxRank)))
       
       settings = data.frame(setting = c("Kinase family", "ScanRank Min", "ScanRank Max", "Number of Permutations", "In Vitro In Vitro weight", "PhosphoNET weight", "Min PhosphoNet score", "Min Sequence Homology"),
                             value   = c(input$kinasefamily, input$scan[1] , input$scan[2], input$nperms, input$wIviv, input$wPhosphoNET, input$minPScore, input$seqHom) )
       
-      spath = file.path(getFolder(), "runData.RData")
-      save(file = spath, df, aResult, aFull, settings)
-      dpath = file.path(getFolder(), "runDb.RData")
-      save(file = dpath, DB)
-      out = data.frame(rowSeq = 1, colSeq = 1, dummy = NaN)
-      meta = data.frame(labelDescription = c("rowSeq", "colSeq", "dummy"), groupingType = c("rowSeq", "colSeq", "QuantitationType"))
-      result = AnnotatedData$new(data = out, metadata = meta)
-      context$setResult(result)
+      # TODO save objects in tercen context!
+      
+      # spath = file.path(getFolder(), "runData.RData")
+      # save(file = spath, df, result, full_result, settings)
+      # dpath = file.path(getFolder(), "runDb.RData")
+      # save(file = dpath, DB)
+      # out = data.frame(rowSeq = 1, colSeq = 1, dummy = NaN)
+      # meta = data.frame(labelDescription = c("rowSeq", "colSeq", "dummy"), groupingType = c("rowSeq", "colSeq", "QuantitationType"))
+      # result = AnnotatedData$new(data = out, metadata = meta)
+      # context$setResult(result)
       return("Done")
     })
   })
@@ -223,10 +230,17 @@ getValues <- function(session){
   ctx <- getCtx(session)
   values <- list()
   
-  values$data <- ctx %>% select(.y, .ri, .ci) %>%
-    mutate(color = ctx$select(ctx$colors) %>% pull) %>%
-    group_by(.ci, .ri, color) %>%
-    summarise(.y = mean(.y)) # take the mean of multiple values per cell
+  # TODO check if ID in rnames
+  data     <- ctx %>% 
+    select(.y, .ri, .ci) %>%
+    mutate(color = ctx$select(ctx$colors) %>% pull)
+  row_data <- ctx %>% 
+    rselect("ID") %>% 
+    mutate(ID = as.factor(ID)) %>%
+    mutate(.ri = seq(0, length(unique(data$.ri))-1))
+  
+  values$data <- data %>%
+    left_join(., row_data)
   
   values$colorLabels <- colnames(ctx$select(ctx$colors))
   
