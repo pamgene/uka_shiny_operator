@@ -1,50 +1,28 @@
-# Template R operator
-
-The `Template R operator` is a template repository for the creation of R operators in Tercen. An overview of steps for developing an operator are:
-
-1. create a github repo
-2. install tercen_studio
-3. login to tercen_studio
-4. git clone the newly created repo
-5. start developing in R in tercen_studio
-6. add R packages to the repo
-7. push to the github repo
-8. go to tercen and install the operator
-
-More information can be found in [Tercen app builder's guide](https://tercen.github.io/appbuilders-guide/).
-
-Below is the operator README standard structure:
+# upstream_kinase_analysis_shiny_operator
 
 ##### Description
 
-The `Template R operator` is a template repository for the creation of R operators in Tercen.
+`upstream_kinase_analysis_shiny_operator` is an application that allows users to converts a list of peptides into a list of kinases. 
 
 ##### Usage
 
 Input projection|.
 ---|---
-`x-axis`        | type, description 
-`y-axis`        | type, description 
-`row`           | type, description 
-`column`        | type, description 
-`colors`        | type, description 
-`labels`        | type, description 
+`y-axis`        | numeric, y value per cell 
 
 Input parameters|.
 ---|---
-`input_var`        | parameter description
+`Kinase_family`      | Type of kinase family, either PTK or STK
+`Lock_kinase_family` | Either Yes or No
 
-Output relations|.
+Output|.
 ---|---
-`output_var`        | output relation
-`Operator view`        | view of the Shiny application
+Results of the Analysis.
 
 ##### Details
 
-Details on the computation.
+The input is a cross-tab view with a single value per cell. A data color is needed to group the observations.
 
 ##### See Also
 
-[template_shiny_operator](https://github.com/tercen/template_shiny_operator)
-, [template_docker_operator](https://github.com/tercen/template_docker_operator)
-
+[upstream_kinase_analysis_shiny_operator](https://github.com/tercen/upstream_kinase_analysis_shiny_operator)

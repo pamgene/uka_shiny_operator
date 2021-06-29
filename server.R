@@ -2,32 +2,23 @@ library(shiny)
 library(tercen)
 library(dplyr)
 library(tidyr)
-library(shinyjs)
 
 ############################################
-#### This part should not be included in ui.R and server.R scripts
+#### This part should not be modified
 getCtx <- function(session) {
-  # Set appropriate options
-  #options("tercen.serviceUri"="http://tercen:5400/api/v1/")
-  #options("tercen.workflowId"= "4133245f38c1411c543ef25ea3020c41")
-  #options("tercen.stepId"= "2b6d9fbf-25e4-4302-94eb-b9562a066aa5")
-  #options("tercen.username"= "admin")
-  #options("tercen.password"= "admin")
-  ctx <- tercenCtx()
+  # retreive url query parameters provided by tercen
+  query <- parseQueryString(session$clientData$url_search)
+  token <- query[["token"]]
+  taskId <- query[["taskId"]]
+  
+  # create a Tercen context object using the token
+  ctx <- tercenCtx(taskId = taskId, authToken = token)
   return(ctx)
 }
 ####
 ############################################
 
-ui <- shinyUI(fluidPage(
-  shinyjs::useShinyjs(),
-  tags$script(HTML('setInterval(function(){ $("#hiddenButton").click(); }, 1000*30);')),
-  tags$footer(shinyjs::hidden(actionButton(inputId = "hiddenButton", label = "hidden"))),
-  uiOutput("body"),
-  title = "Kinase Analysis"
-))
-
-server <- shinyServer(function(input, output, session) {
+shinyServer(function(input, output, session) {
   
   dataInput <- reactive({
     getValues(session)
@@ -48,31 +39,31 @@ server <- shinyServer(function(input, output, session) {
         
       ),
       mainPanel(tabsetPanel(
-                  tabPanel("Basic Settings",
-                           tags$hr(),
-                           selectInput("kinasefamily", label = "Kinase family", choices = c("PTK", "STK")),
-                           tags$hr(),
-                           checkboxInput("usePairing", label = "Use a Pairing Factor"),
-                           conditionalPanel("input.usePairing == true",
-                                            selectInput("pairingFactor",label = "Select the Pairing Factor", choices = "" )
-                           )
-                  ),
-                  
-                  tabPanel("Advanced Settings",
-                           sliderInput("scan", "Scan Rank From-To", min = 1, max = 20, value = c(4,12),round = TRUE),
-                           sliderInput("nperms", "Number of permutations", min = 100, max = 1000, value = 500, step = 100, round = TRUE),
-                           tags$hr(),
-                           helpText("Set weights for database types:"),
-                           sliderInput("wIviv", "In Vitro / In Vivo", min = 0, max = 1, value = 1),
-                           sliderInput("wPhosphoNET", "In Silico (PhosphoNET)", min = 0, max = 1, value = 1),
-                           tags$hr(),
-                           helpText("Set minimal sequence homology required to link a peptide to a phosphosite"),
-                           sliderInput("seqHom", "Minimal sequence homology", min =0, max = 1, value =0.9),
-                           tags$hr(),
-                           numericInput("minPScore", "Minimal PhosphoNET prediction score", value = 300),
-                           tags$hr(),
-                           checkboxInput("seed", "Set seed for random permutations"))
-                )
+        tabPanel("Basic Settings",
+                 tags$hr(),
+                 selectInput("kinasefamily", label = "Kinase family", choices = c("PTK", "STK")),
+                 tags$hr(),
+                 checkboxInput("usePairing", label = "Use a Pairing Factor"),
+                 conditionalPanel("input.usePairing == true",
+                                  selectInput("pairingFactor",label = "Select the Pairing Factor", choices = "" )
+                 )
+        ),
+        
+        tabPanel("Advanced Settings",
+                 sliderInput("scan", "Scan Rank From-To", min = 1, max = 20, value = c(4,12),round = TRUE),
+                 sliderInput("nperms", "Number of permutations", min = 100, max = 1000, value = 500, step = 100, round = TRUE),
+                 tags$hr(),
+                 helpText("Set weights for database types:"),
+                 sliderInput("wIviv", "In Vitro / In Vivo", min = 0, max = 1, value = 1),
+                 sliderInput("wPhosphoNET", "In Silico (PhosphoNET)", min = 0, max = 1, value = 1),
+                 tags$hr(),
+                 helpText("Set minimal sequence homology required to link a peptide to a phosphosite"),
+                 sliderInput("seqHom", "Minimal sequence homology", min =0, max = 1, value =0.9),
+                 tags$hr(),
+                 numericInput("minPScore", "Minimal PhosphoNET prediction score", value = 300),
+                 tags$hr(),
+                 checkboxInput("seed", "Set seed for random permutations"))
+      )
       )
     )
   })
@@ -239,5 +230,3 @@ getProperties <- function(session) {
   list(Kinase_family      = ifelse(is.null(ctx$op.value("Kinase_family")), "PTK", ctx$op.value("Kinase_family")), 
        Lock_kinase_family = ifelse(is.null(ctx$op.value("Lock_kinase_family")), "Yes", ctx$op.value("Lock_kinase_family")))
 }
-
-runApp(shinyApp(ui, server))  
