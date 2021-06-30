@@ -15,12 +15,6 @@ getCtx <- function(session) {
   #options("tercen.stepId"= "2b6d9fbf-25e4-4302-94eb-b9562a066aa5")
   #options("tercen.username"= "admin")
   #options("tercen.password"= "admin")
-  
-  options("tercen.serviceUri"="https://tercen.com/")
-  options("tercen.username"= "ginberg")
-  options("tercen.password"= 'w:~9u203-@,uL[zi5q{!N_$uN+_"R:y6FSmZ&6`mujgTE/]=')
-  options("tercen.workflowId"= "4629c134b09c53160ea461e75fe42d12")
-  options("tercen.stepId"= "2d17de25-3d52-4964-8ac4-1f514af62a93")
   ctx <- tercenCtx()
   return(ctx)
 }
@@ -111,7 +105,7 @@ server <- shinyServer(function(input, output, session) {
   }
   
   # read database file
-  DB  <- readRDS("db2.rds")
+  DB  <- readRDS("db.rds")
   nid <- showNotification("Press Start to start the analysis.", duration = NULL, type = "message", closeButton = FALSE)
   updateSliderInput(session, "seqHom", min = min(DB$PepProtein_SeqHomology))
   

@@ -97,7 +97,7 @@ shinyServer(function(input, output, session) {
   }
   
   # read database file
-  DB  <- readRDS("db2.rds")
+  DB  <- readRDS("db.rds")
   nid <- showNotification("Press Start to start the analysis.", duration = NULL, type = "message", closeButton = FALSE)
   updateSliderInput(session, "seqHom", min = min(DB$PepProtein_SeqHomology))
   
