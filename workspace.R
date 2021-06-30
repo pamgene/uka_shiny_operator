@@ -1,9 +1,12 @@
 library(shiny)
 library(tercen)
+library(plyr)
 library(dplyr)
 library(tidyr)
 library(shinyjs)
 library(parallel)
+library(reshape2)
+library(pgCheckInput)
 source("upstream_analysis.R")
 
 ############################################
@@ -148,12 +151,12 @@ server <- shinyServer(function(input, output, session) {
       shinyjs::disable("usePairing")
       shinyjs::disable("pairingFactor")
       
-      # TODO checks
-      # if(!data$hasUniqueDataMapping) stop("Mapping error: not all input data is unique")
-      # if(data$hasMissingCells) stop("Missing values are not allowed.")
-      # if(data$getMaxNPerCell() > 1) stop("More than one value per cell in the cross-tab view is not allowed.")
-      
       df <- data_input$data
+      
+      # checks
+      check(NonUniqueDataMapping, df, openUrlOnError = TRUE)
+      check(MultipleValuesPerCell, df)
+      check(EmptyCells, df)
       
       if (!is.null(data_input$hasZeroScaleRows) && data_input$hasZeroScaleRows) {
         zIdx <- data_input$getZeroScaleRows()
@@ -206,7 +209,6 @@ server <- shinyServer(function(input, output, session) {
                             value   = c(input$kinasefamily, input$scan[1] , input$scan[2], input$nperms, input$wIviv, input$wPhosphoNET, input$minPScore, input$seqHom) )
       
       # TODO save objects in tercen context!
-      
       # spath = file.path(getFolder(), "runData.RData")
       # save(file = spath, df, result, full_result, settings)
       # dpath = file.path(getFolder(), "runDb.RData")
@@ -224,7 +226,9 @@ getValues <- function(session){
   ctx <- getCtx(session)
   values <- list()
   
-  # TODO check if ID in rnames
+  if (!"ID" %in% names(ctx$rnames)) {
+    stop("ID field should be available as row name")
+  }
   data     <- ctx %>% 
     select(.y, .ri, .ci) %>%
     mutate(color = ctx$select(ctx$colors) %>% pull)
