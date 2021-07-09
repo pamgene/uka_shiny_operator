@@ -55,7 +55,7 @@ server <- shinyServer(function(input, output, session) {
   output$body <- renderUI({
     
     mode <- modeInput()
-    if (mode == "run") {
+    if (mode == "show" || mode == "run") {
       sidebarLayout(
         sidebarPanel(
           tags$div(HTML("<strong><font color = #6895d1>Upstream Kinase Analysis</font></strong>")),
