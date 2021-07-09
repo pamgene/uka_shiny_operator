@@ -1,0 +1,117 @@
+---
+title: "Upstream Kinase Analysis Report"
+output: 
+  html_document:
+    toc: true
+params:
+  scorePlot: NA
+  volcanoPlot: NA
+  summaryTable: NA
+  settingsTable: NA
+  grpText: NA
+---
+
+```{r echo=FALSE}
+knitr::include_graphics("pglogo.png")
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### general
+* This is an automatically generated report of your upstream kinase analysis session
+```{r echo = FALSE}
+print(Sys.time())
+```
+
+* Two group comparison with `r I(print(params$grpText))`
+
+### Upstream kinase analysis
+
+*Add a general explanation?*
+Kinase activity profiling with PamChip? peptide microarrays can be used to study signal transduction in lysates of cell lines and clinical samples. 
+The substrate to upstream kinase link ic complex: One substrate (i.e. peptide) has link to more than one kinase and one kinase can phosphorylate more than one substrate (i.e. peptide).
+The question is, what are the most important kinase(s) that are associated with substrates which differ the most between two given conditions. 
+A solution is, to calculate a score per Kinase based on each association. 
+Putative ?upstream? kinases, that phosphorylate peptides on the microarray, may be identified using PTM databases such as HPRD, Phosphosite PLUS, Phospho.elm, UniPROT, Reactome, which are empirically derived relationships. We collectively termed the combined databases as the iviv database.
+We included a database PhosphoNET with in-silico predictions, which contains predictions for a relatively large number of kinases.
+In the Upstream Kinase PamApp, functional class scoring based on 6 databases is used to identify upstream kinases responsible for multiple parallel changes in peptide phosphorylation.
+This is an experimental tool and the results should be regarded as speculative, for generating hypotheses. 
+For kinases putatively identified by this tool it should be considered: (a) If these make sense in the context of the experiment that was analysed. (b) If and how these can be validated.
+
+
+### Peptide Analysis
+
+*First add a section on per peptide analysis?* 
+We use the 6 databases described above to map the PamChip peptides to putative upstream kinases, i.e. to derive phosphosite-Kinase relationships. 
+Each relationship will have a Rank 0 (iviv Db) or Ranks 1 to 20 (PhosphoNET Db). 
+Per kinase, the default BASIC SET includes the peptides of Ranks 0 to 4 and subsequent peptide sets are formed by additively including per set, the lower ranks from 5 to 12.
+Then, an analysis of the difference between experimental groups is performed in terms of the upstream kinases rather than in terms of peptides. 
+This integration of prior information and experimental data is brought about by grouping the peptides in non-exclusive sets that "belong" to individual kinases. 
+Based on the collective change between these peptide sets, the corresponding upstream kinases are scored for potential involvement in the difference between groups.
+A (normalized) Kinase Statistic (Sk) is determined for each kinase for each peptide set with different rankings. 
+A (normalized) Kinase statistic (Sk) for the change in phosphorylation between samples in group T and group C can be calculated as the mean signal to noise ratio (SNR) of the individual peptides in the group: the mean signal in T minus the mean signal in C divided by the standard deviation. 
+For example if there are 14 peptides in a set for KinaseA, then the value of Sk for KinaseA would be the mean SNR of the 14 peptides associated with this kinase. 
+If there is on average, a larger change of the peptides in the same direction (i.e. all up or all down), a larger absolute value of Sk would result. 
+Next, for each Sk per Kinase, per petide set, a specificty score and significance score are calculated. 
+The specificity is determined by a permutation test, randomly permuting the peptides between the peptide sets. 
+Hence, the specificity score assesses if the value of Sk is associated with a specific set of peptides, or that similarly high values are likely to be obtained using random sets of peptides.
+The significance of Sk can be determined by a permutation test, randomly permuting the samples between the groups. 
+Hence, the significance score assesses if the absolute value of Sk using the experimental groups is higher than what can be expected using a random grouping of the samples.
+Based on scoring specificity and significance of Sk (Final Score) in this way, kinases may be ranked (ordered) according to their putative (predicted) involvement in the observed experimental differences.
+
+
+
+### Upstream Kinase Score Plot
+
+* This plot shows putative upstream kinases ranked (ordered) by their Final Score (median) or the value of the Kinase Statistic (median).
+
+* Each point is the result of an individual analysis with a different peptide set each with additive rank cut-offs for the named upstream kinase.
+
+* The size of the points indicates the size of the peptide set used for a kinase in the corresponding analysis (see legend).
+
+* The color of the points indicates the specificity score resulting from the corresponding analysis (see legend).
+
+>
+
+```{r, echo = FALSE, warning = FALSE, fig.width = 9, fig.height = 12}
+print(params$scorePlot)
+```
+
+### Volcano plot
+
+* This plot is a graphical summary of the upstream kinase analysis. It shows the median Final Score (y-axis) versus the mean Kinase Statistic (x-axis) of putative upstream kinases.
+
+* The size of the kinase names indicates the size of the peptide set used for a kinase in the corresponding analysis.
+
+* The color of the kinase names indicates the specificity score resulting from the corresponding analysis.
+
+* The transparency of the kinase names indicates the consistency of the result. EXPLAIN!
+
+* The upstream score plot can be dowloaded as a hi-resolution png image file from the interactive results in Bionavigator.
+
+
+
+```{r, echo = FALSE, fig.width = 9, fig.height = 9}
+print(params$volcanoPlot)
+```
+
+
+
+### Advanced
+
+* advanced interpretation plots?*
+
+### Settings
+* settings used in the analysis
+```{r, echo = FALSE, results = "asis"}
+knitr::kable(params$settingsTable, caption = "Settings")
+```
+
+### Summary table
+* Table summary of the upstream kinase analysis.
+* The table can be downloaded in text from the interactive results in Bionavigator.
+```{r, echo = FALSE, results = "asis"}
+knitr::kable(params$summaryTable, caption = "Summary results", digits = 2)
+```
