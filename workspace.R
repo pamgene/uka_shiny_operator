@@ -209,7 +209,7 @@ server <- shinyServer(function(input, output, session) {
   }
   
   mode <- isolate(modeInput())
-  if (mode == "run") {
+  if (mode == "show" || mode == "run") {
     # read database file
     DB  <- readRDS("data/db.rds")
     nid <- showNotification("Press Start to start the analysis.", duration = NULL, type = "message", closeButton = FALSE)
