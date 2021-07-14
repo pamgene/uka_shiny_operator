@@ -31,6 +31,9 @@ getCtx <- function(session) {
 server <- shinyServer(function(input, output, session) {
   
   results <- reactiveValues()
+  viewer  <- reactiveValues(view = "run")
+  # read database file
+  DB      <- readRDS("data/db.rds")
   
   dataInput <- reactive({
     getValues(session)
@@ -48,11 +51,20 @@ server <- shinyServer(function(input, output, session) {
     getMode(session) 
   })
   
-  output$body <- renderUI({
-    ctx <- getCtx(session)
+  getView <- reactive({
+    result          <- "run"
+    ctx             <- getCtx(session)
     computedResults <- getComputedResults()
-    
-    if (is.null(computedResults) && inputDataEqual(ctx, computedResults)) {
+    switchToRun     <- input$switchToRun
+    if (!is.null(computedResults) && inputDataEqual(ctx, computedResults) &&
+        (is.null(switchToRun) || !is.null(switchToRun) && switchToRun == 0)) {
+      result <- "showResult"
+    }
+    result
+  })
+  
+  output$body <- renderUI({
+    if (isRunView(getView())) {
       sidebarLayout(
         sidebarPanel(
           tags$div(HTML("<strong><font color = #6895d1>Upstream Kinase Analysis</font></strong>")),
@@ -90,6 +102,7 @@ server <- shinyServer(function(input, output, session) {
         )
       )
     } else {
+      computedResults     <- getComputedResults()
       results$DB          <- computedResults$DB
       results$full_result <- computedResults$full_result
       results$df          <- computedResults$df
@@ -111,6 +124,7 @@ server <- shinyServer(function(input, output, session) {
                       value = 3),
           tags$hr(),
           selectInput("spsort", "Rank kinases on", choices = list("Median Score", "Max Score", "Statistic")),
+          actionButton("switchToRun", "Switch to Run Analysis View"),
           width = 3),
         mainPanel(
           tabsetPanel(
@@ -204,13 +218,12 @@ server <- shinyServer(function(input, output, session) {
     }
   }
   
-  computedResults <- isolate(getComputedResults())
-  if (is.null(computedResults)) {
-    # read database file
-    DB  <- readRDS("data/db.rds")
-    nid <- showNotification("Press Start to start the analysis.", duration = NULL, type = "message", closeButton = FALSE)
-    updateSliderInput(session, "seqHom", min = min(DB$PepProtein_SeqHomology))
-  }
+  observeEvent(getView(), {
+    if (isRunView(getView())) {
+      nid <<- showNotification("Press Start to start the analysis.", duration = NULL, type = "message", closeButton = FALSE)
+      updateSliderInput(session, "seqHom", min = min(DB$PepProtein_SeqHomology))
+    }
+  })
   
   observe({
     ctx  <- getCtx(session)
@@ -606,4 +619,8 @@ inputDataEqual <- function(ctx, results) {
     result <- TRUE
   }
   result
+}
+
+isRunView <- function(view) {
+  view == "run"
 }
