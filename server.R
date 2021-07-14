@@ -40,14 +40,19 @@ server <- shinyServer(function(input, output, session) {
     getProperties(session)
   })
   
+  getComputedResults <- reactive({
+    getCtxResults(session)
+  })
+  
   modeInput <- reactive({ 
     getMode(session) 
   })
   
   output$body <- renderUI({
+    ctx <- getCtx(session)
+    computedResults <- getComputedResults()
     
-    mode <- modeInput()
-    if (mode == "show" || mode == "run") {
+    if (is.null(computedResults) && inputDataEqual(ctx, computedResults)) {
       sidebarLayout(
         sidebarPanel(
           tags$div(HTML("<strong><font color = #6895d1>Upstream Kinase Analysis</font></strong>")),
@@ -55,7 +60,6 @@ server <- shinyServer(function(input, output, session) {
           actionButton("start", "Start"),
           tags$hr(),
           textOutput("status")
-          
         ),
         mainPanel(tabsetPanel(
           tabPanel("Basic Settings",
@@ -85,10 +89,10 @@ server <- shinyServer(function(input, output, session) {
         )
         )
       )
-    } else if (mode == "showResult") {
-      results$DB          <- getResults(session, "DB")
-      results$full_result <- getResults(session, "full_result")
-      results$df          <- getResults(session, "data")
+    } else {
+      results$DB          <- computedResults$DB
+      results$full_result <- computedResults$full_result
+      results$df          <- computedResults$df
       
       results$kinase2uniprot <- results$DB %>%
         group_by(Kinase_UniprotID) %>%
@@ -200,8 +204,8 @@ server <- shinyServer(function(input, output, session) {
     }
   }
   
-  mode <- isolate(modeInput())
-  if (mode == "show" || mode == "run") {
+  computedResults <- isolate(getComputedResults())
+  if (is.null(computedResults)) {
     # read database file
     DB  <- readRDS("data/db.rds")
     nid <- showNotification("Press Start to start the analysis.", duration = NULL, type = "message", closeButton = FALSE)
@@ -303,10 +307,7 @@ server <- shinyServer(function(input, output, session) {
                             value   = c(input$kinasefamily, input$scan[1] , input$scan[2], input$nperms, input$wIviv, input$wPhosphoNET, input$minPScore, input$seqHom) )
       
       # save objects in tercen context
-      saveData(session, df, "data")
-      saveData(session, full_result, "full_result")
-      saveData(session, settings, "settings")
-      saveData(session, DB, "DB")
+      saveData(session, list(df = df, full_result = full_result, settings = settings, DB = DB), "results")
       return("Done")
     })
   })
@@ -536,7 +537,7 @@ getMode = function(session){
   return(query[["mode"]])
 }
 
-saveData <- function(session, df, name) {
+saveData <- function(session, result_list, name) {
   ctx        <- getCtx(session)
   workflowId <- getWorkflowId(session)
   stepId     <- getStepId(session)
@@ -558,13 +559,16 @@ saveData <- function(session, df, name) {
   
   fileDoc$meta <- list(metaWorkflowId, metaStepId)
   con          <- rawConnection(raw(0), "r+")
-  write.csv(df, file=con, row.names = F)
+  # store the query object to be able to check if input data has changed
+  result_list  <- append(result_list, list(query = ctx$query))
+  saveRDS(result_list, con)
   bytes        <- rawConnectionValue(con)
   fileDoc      <- ctx$client$fileService$upload(fileDoc, bytes)
   fileDoc
 }
 
 getResultsFile = function(session, name) {
+  result     <- NULL
   ctx        <-  getCtx(session)
   workflowId <- getWorkflowId(session)
   stepId     <- getStepId(session)
@@ -576,21 +580,30 @@ getResultsFile = function(session, name) {
   
   if (length(files) > 0) {
     files <- files[unlist(lapply(files, FUN = function(x) x$name == name))]
-    return (files[[1]])
+    if (!identical(files, list())) {
+      result <- files[[1]]
+    }
   } 
-  
-  return (NULL)
+  result
 }
 
-getResults <- function(session, name) {
+getCtxResults <- function(session) {
   ctx      <-  getCtx(session)
   result   <- NULL
-  file     <- getResultsFile(session, name)
+  file     <- getResultsFile(session, "results")
   if (!is.null(file)) {
     bytes    <- ctx$client$fileService$download(file$id)
     raw_con  <- rawConnection(object = bytes, open = "r")
-    bin_data <- readBin(raw_con, what = "raw", n = length(bytes))
-    result   <- read.csv(file = textConnection(object = rawToChar(bin_data)))
+    result   <- readRDS(raw_con)
+  }
+  result
+}
+
+inputDataEqual <- function(ctx, results) {
+  result <- FALSE
+  if (!is.null(results) && class(results) == "list" && "query" %in% names(results) &&
+      ctx$query$qtHash == results$query$qtHash && ctx$query$rowHash == results$query$rowHash && ctx$query$columnHash == results$query$columnHash) {
+    result <- TRUE
   }
   result
 }
