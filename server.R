@@ -56,8 +56,10 @@ server <- shinyServer(function(input, output, session) {
     ctx             <- getCtx(session)
     computedResults <- getComputedResults()
     switchToRun     <- input$switchToRun
+    switchToResult  <- input$switchToResult
     if (!is.null(computedResults) && inputDataEqual(ctx, computedResults) &&
-        (is.null(switchToRun) || !is.null(switchToRun) && switchToRun == 0)) {
+        (is.null(switchToRun) || !is.null(switchToRun) && switchToRun == 0) ||
+        (!is.null(switchToResult) && switchToResult == 1)) {
       result <- "showResult"
     }
     result
@@ -71,7 +73,9 @@ server <- shinyServer(function(input, output, session) {
           tags$hr(),
           actionButton("start", "Start"),
           tags$hr(),
-          textOutput("status")
+          textOutput("status"),
+          tags$hr(),
+          actionButton("switchToResult", "Switch to Results View"),
         ),
         mainPanel(tabsetPanel(
           tabPanel("Basic Settings",
@@ -101,7 +105,7 @@ server <- shinyServer(function(input, output, session) {
         )
         )
       )
-    } else {
+    } else if (isRunView(getView())) {
       computedResults     <- getComputedResults()
       results$DB          <- computedResults$DB
       results$full_result <- computedResults$full_result
@@ -218,10 +222,27 @@ server <- shinyServer(function(input, output, session) {
     }
   }
   
-  observeEvent(getView(), {
+  observeEvent(c(getView(), results$done), {
     if (isRunView(getView())) {
       nid <<- showNotification("Press Start to start the analysis.", duration = NULL, type = "message", closeButton = FALSE)
       updateSliderInput(session, "seqHom", min = min(DB$PepProtein_SeqHomology))
+    }
+  })
+  
+  # toggle button
+  observeEvent(c(results$done, input$switchToResult), {
+    if (is.null(results$done) || !results$done) {
+      shinyjs::disable("switchToResult")
+    } else {
+      shinyjs::enable("switchToResult")
+    }
+  }, ignoreNULL = FALSE)
+  
+  observeEvent(input$switchToRun, {
+    if (input$switchToRun == 0) {
+      results$done <- FALSE
+    } else {
+      results$done <- TRUE
     }
   })
   
@@ -236,15 +257,13 @@ server <- shinyServer(function(input, output, session) {
     if (is.null(data_input)) return()
     
     if (length(ctx$cnames) > 0) {
-      # poptions = data$colorColumnNames
-      # names(poptions) = data$arrayLabels
       poptions <- unlist(ctx$cnames)
       updateSelectInput(session, "pairingFactor", choices = poptions)
     }
     output$status = renderText({
       grp = getGroupingLabel(data_input)
       if (input$start == 0){
-        if(properties$Lock_kinase_family == "Yes"){
+        if(properties$Lock_kinase_family == "Yes") {
           shinyjs::disable("kinasefamily")
         }
         if (!is.null(grp)){
@@ -321,6 +340,7 @@ server <- shinyServer(function(input, output, session) {
       
       # save objects in tercen context
       saveData(session, list(df = df, full_result = full_result, settings = settings, DB = DB), "results")
+      results$done <- TRUE
       return("Done")
     })
   })
@@ -334,7 +354,6 @@ server <- shinyServer(function(input, output, session) {
       txt = "Grouping factor: none"
     }
   })
-  
   
   output$grpText = renderText({
     grpText()
@@ -624,3 +643,7 @@ inputDataEqual <- function(ctx, results) {
 isRunView <- function(view) {
   view == "run"
 }
+isResultView <- function(view) {
+  view == "showResult"
+}
+
