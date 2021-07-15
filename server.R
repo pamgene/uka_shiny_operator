@@ -51,22 +51,9 @@ server <- shinyServer(function(input, output, session) {
     getMode(session) 
   })
   
-  getView <- reactive({
-    result          <- "run"
-    ctx             <- getCtx(session)
-    computedResults <- getComputedResults()
-    switchToRun     <- input$switchToRun
-    switchToResult  <- input$switchToResult
-    if (!is.null(computedResults) && inputDataEqual(ctx, computedResults) &&
-        (is.null(switchToRun) || !is.null(switchToRun) && switchToRun == 0) ||
-        (!is.null(switchToResult) && switchToResult == 1)) {
-      result <- "showResult"
-    }
-    result
-  })
-  
   output$body <- renderUI({
-    if (isRunView(getView())) {
+    view <- viewer$view
+    if (isRunView(view)) {
       sidebarLayout(
         sidebarPanel(
           tags$div(HTML("<strong><font color = #6895d1>Upstream Kinase Analysis</font></strong>")),
@@ -75,7 +62,7 @@ server <- shinyServer(function(input, output, session) {
           tags$hr(),
           textOutput("status"),
           tags$hr(),
-          actionButton("switchToResult", "Switch to Results View"),
+          disabled(actionButton("switchToResult", "Switch to Results View")),
         ),
         mainPanel(tabsetPanel(
           tabPanel("Basic Settings",
@@ -105,7 +92,7 @@ server <- shinyServer(function(input, output, session) {
         )
         )
       )
-    } else if (isRunView(getView())) {
+    } else if (isResultView(view)) {
       computedResults     <- getComputedResults()
       results$DB          <- computedResults$DB
       results$full_result <- computedResults$full_result
@@ -222,27 +209,38 @@ server <- shinyServer(function(input, output, session) {
     }
   }
   
-  observeEvent(c(getView(), results$done), {
-    if (isRunView(getView())) {
+  observeEvent(viewer$view, {
+    view <- viewer$view
+    if (isRunView(viewer$view)) {
       nid <<- showNotification("Press Start to start the analysis.", duration = NULL, type = "message", closeButton = FALSE)
       updateSliderInput(session, "seqHom", min = min(DB$PepProtein_SeqHomology))
+    } else {
+      removeNotification(nid)
     }
   })
   
-  # toggle button
-  observeEvent(c(results$done, input$switchToResult), {
-    if (is.null(results$done) || !results$done) {
-      shinyjs::disable("switchToResult")
-    } else {
-      shinyjs::enable("switchToResult")
-    }
-  }, ignoreNULL = FALSE)
-  
   observeEvent(input$switchToRun, {
     if (input$switchToRun == 0) {
-      results$done <- FALSE
+      results$analysis_done <- FALSE
     } else {
-      results$done <- TRUE
+      results$analysis_done <- TRUE
+      viewer$view <- "run"
+    }
+  })
+  
+  observeEvent(input$switchToResult, {
+    if (input$switchToResult == 0) {
+    } else {
+      viewer$view <- "showResult"
+    }
+  })
+  
+  observeEvent(getComputedResults(), {
+    results <- getComputedResults()
+    if (is.null(results)) {
+      viewer$view <- "run"
+    } else {
+      viewer$view <- "showResult"
     }
   })
   
@@ -310,6 +308,7 @@ server <- shinyServer(function(input, output, session) {
         filter(Kinase_PKinase_PredictorVersion2Score >= input$minPScore | Database == "iviv") %>%
         filter(Kinase_Rank <= input$scan[2])
       
+      shinyjs::disable("switchToResult")
       showNotification(ui = "Please wait ... running analysis.", id = nid, type = "message", closeButton = FALSE, duration = NULL)
       
       if (input$seed) {
@@ -340,7 +339,8 @@ server <- shinyServer(function(input, output, session) {
       
       # save objects in tercen context
       saveData(session, list(df = df, full_result = full_result, settings = settings, DB = DB), "results")
-      results$done <- TRUE
+      results$analysis_done <- TRUE
+      shinyjs::enable("switchToResult")
       return("Done")
     })
   })
