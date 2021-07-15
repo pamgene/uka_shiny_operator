@@ -12,8 +12,8 @@ Input projection|.
 
 Input parameters|.
 ---|---
-`Kinase_family`      | Type of kinase family, either PTK or STK
-`Lock_kinase_family` | Either Yes or No
+`Kinase_family`      | Type of kinase family, either PTK or STK, default is PTK
+`Lock_kinase_family` | Either Yes or No, default is Yes
 
 Output|.
 ---|---
