@@ -94,93 +94,103 @@ server <- shinyServer(function(input, output, session) {
       )
     } else if (isResultView(view)) {
       computedResults     <- getComputedResults()
-      results$DB          <- computedResults$DB
-      results$full_result <- computedResults$full_result
-      results$df          <- computedResults$df
-      
-      results$kinase2uniprot <- results$DB %>%
-        group_by(Kinase_UniprotID) %>%
-        dplyr::summarise(Kinase_Name = Kinase_Name[1])
-      
-      sidebarLayout(
-        sidebarPanel(
-          tags$div(HTML("<strong><font color = #6895d1>Upstream Kinase Analysis</font></strong>")),
-          tags$hr(),
-          textOutput("grpText"),
-          tags$hr(),
-          sliderInput("minsetsize", "Include results based on peptide sets with minimal size of:",
-                      min = 1,
-                      max = 5,
-                      step = 1,
-                      value = 3),
-          tags$hr(),
-          selectInput("spsort", "Rank kinases on", choices = list("Median Score", "Max Score", "Statistic")),
-          actionButton("switchToRun", "Switch to Run Analysis View"),
-          width = 3),
-        mainPanel(
-          tabsetPanel(
-            tabPanel("Upstream Kinase Score",
-                     helpText("This plot shows putative upstream kinases ranked by their Final Score (median) or the value of the Kinase Statistic (median)."),
-                     helpText("Each point is the result of an individual analysis with a different rank cut-off for adding upstream kinases for peptides."),
-                     helpText("The size of the points indicates the size of the peptide set used for a kinase in the corresponding analysis."),
-                     helpText("The color of the points indicates the specificity score resulting from the corresponding analysis."),
-                     plotOutput("scorePlot", height = "1400px")
-            ),
-            tabPanel("Kinase Volcano",
-                     helpText("This plot shows the median Final Score (y-axis) versus the mean Kinase Statistic (x-axis) of putative upstream kinases."),
-                     helpText("The size of the kinase names indicates the size of the peptide set used for a kinase in the corresponding analysis."),
-                     helpText("The color of the kinase names indicates the specificity score resulting from the corresponding analysis."),
-                     plotOutput("volcanoPlot", height = "800px")
-            ),
-            tabPanel("Kinase Details",
-                     helpText("These are kinase details"),
-                     selectInput("showKinase", "Select kinase", choices = ""),
-                     tags$hr(),
-                     actionLink("uniprot", "..."),
-                     tags$hr(),
-                     dataTableOutput("kinaseSummary"),
-                     tabsetPanel(
-                       tabPanel("Details Table",
-                                helpText(""),
-                                dataTableOutput("kinaseDetails")
-                       ),
-                       tabPanel("Per peptide plot",
-                                helpText(""),
-                                plotOutput("perPeptidePlot", height = "800px")
-                                
+      if (!is.null(computedResults)) {
+        results$DB          <- computedResults$DB
+        results$full_result <- computedResults$full_result
+        results$df          <- computedResults$df
+        
+        results$kinase2uniprot <- results$DB %>%
+          group_by(Kinase_UniprotID) %>%
+          dplyr::summarise(Kinase_Name = Kinase_Name[1])
+        
+        sidebarLayout(
+          sidebarPanel(
+            tags$div(HTML("<strong><font color = #6895d1>Upstream Kinase Analysis</font></strong>")),
+            tags$hr(),
+            textOutput("grpText"),
+            tags$hr(),
+            sliderInput("minsetsize", "Include results based on peptide sets with minimal size of:",
+                        min = 1,
+                        max = 5,
+                        step = 1,
+                        value = 3),
+            tags$hr(),
+            selectInput("spsort", "Rank kinases on", choices = list("Median Score", "Max Score", "Statistic")),
+            actionButton("switchToRun", "Switch to Run Analysis View"),
+            width = 3),
+          mainPanel(
+            tabsetPanel(
+              tabPanel("Upstream Kinase Score",
+                       helpText("This plot shows putative upstream kinases ranked by their Final Score (median) or the value of the Kinase Statistic (median)."),
+                       helpText("Each point is the result of an individual analysis with a different rank cut-off for adding upstream kinases for peptides."),
+                       helpText("The size of the points indicates the size of the peptide set used for a kinase in the corresponding analysis."),
+                       helpText("The color of the points indicates the specificity score resulting from the corresponding analysis."),
+                       plotOutput("scorePlot", height = "1400px")
+              ),
+              tabPanel("Kinase Volcano",
+                       helpText("This plot shows the median Final Score (y-axis) versus the mean Kinase Statistic (x-axis) of putative upstream kinases."),
+                       helpText("The size of the kinase names indicates the size of the peptide set used for a kinase in the corresponding analysis."),
+                       helpText("The color of the kinase names indicates the specificity score resulting from the corresponding analysis."),
+                       plotOutput("volcanoPlot", height = "800px")
+              ),
+              tabPanel("Kinase Details",
+                       helpText("These are kinase details"),
+                       selectInput("showKinase", "Select kinase", choices = ""),
+                       tags$hr(),
+                       actionLink("uniprot", "..."),
+                       tags$hr(),
+                       dataTableOutput("kinaseSummary"),
+                       tabsetPanel(
+                         tabPanel("Details Table",
+                                  helpText(""),
+                                  dataTableOutput("kinaseDetails")
+                         ),
+                         tabPanel("Per peptide plot",
+                                  helpText(""),
+                                  plotOutput("perPeptidePlot", height = "800px")
+                                  
+                         )
                        )
-                     )
-            ),
-            tabPanel("Report",
-                     helpText(""),
-                     downloadButton("report", "Generate report"),
-                     tags$hr(),
-                     helpText("The table below shows the settings that were used for this analysis."),
-                     dataTableOutput("InfoSettings"),
-                     helpText("The table below shows the summary results of the analysis"),
-                     dataTableOutput("SummaryTable")
-            ),
-            tabPanel("Kinase tree",
-                     tags$a(href = "http://kinhub.org/kinmap/","The summary data can be saved as a file that can be used to map the data to a phylogenetic tree using the external websit Kinmap."),
-                     helpText(""),
-                     downloadButton("saveKinMap", "Save data as KinMap file"),
-                     tags$hr(),
-                     helpText("The specificty score will be mapped to the symbol size"),
-                     textInput("sclow", "Scale score from:", 0),
-                     textInput("schigh","Scale score to:", 2),
-                     textInput("scmax", "max symbol size", 50),
-                     tags$hr(),
-                     helpText("The kinase statistic will be mapped to the symbol color"),
-                     textInput("stlow", "Scale kinase statistic from:", -1),
-                     textInput("stmid", "Scale kinase statistic midpoint:", 0),
-                     textInput("sthigh","Scale kinase statistic to:", 1),
-                     colourpicker::colourInput("cllow", label = "Low color", value = "green"),
-                     colourpicker::colourInput("clmid", label = "Mid color", value = "black"),
-                     colourpicker::colourInput("clhigh", label = "High color", value = "red")
+              ),
+              tabPanel("Report",
+                       helpText(""),
+                       downloadButton("report", "Generate report"),
+                       tags$hr(),
+                       helpText("The table below shows the settings that were used for this analysis."),
+                       dataTableOutput("InfoSettings"),
+                       helpText("The table below shows the summary results of the analysis"),
+                       dataTableOutput("SummaryTable")
+              ),
+              tabPanel("Kinase tree",
+                       tags$a(href = "http://kinhub.org/kinmap/","The summary data can be saved as a file that can be used to map the data to a phylogenetic tree using the external websit Kinmap."),
+                       helpText(""),
+                       downloadButton("saveKinMap", "Save data as KinMap file"),
+                       tags$hr(),
+                       helpText("The specificty score will be mapped to the symbol size"),
+                       textInput("sclow", "Scale score from:", 0),
+                       textInput("schigh","Scale score to:", 2),
+                       textInput("scmax", "max symbol size", 50),
+                       tags$hr(),
+                       helpText("The kinase statistic will be mapped to the symbol color"),
+                       textInput("stlow", "Scale kinase statistic from:", -1),
+                       textInput("stmid", "Scale kinase statistic midpoint:", 0),
+                       textInput("sthigh","Scale kinase statistic to:", 1),
+                       colourpicker::colourInput("cllow", label = "Low color", value = "green"),
+                       colourpicker::colourInput("clmid", label = "Mid color", value = "black"),
+                       colourpicker::colourInput("clhigh", label = "High color", value = "red")
+              )
             )
           )
         )
-      )
+      } else {
+        sidebarLayout(
+          sidebarPanel(
+            tags$div(HTML("<strong><font color = #6895d1>Upstream Kinase Analysis</font></strong>")),
+            tags$hr(),
+            tags$div(HTML("Output not ready yet, please refresh the page")),
+            width = 3),
+          mainPanel())
+      }
     }
   })
   
@@ -596,7 +606,6 @@ saveData <- function(session, result_list, name) {
   saveRDS(result_list, con)
   bytes        <- rawConnectionValue(con)
   fileDoc      <- ctx$client$fileService$upload(fileDoc, bytes)
-  fileDoc
 }
 
 getResultsFile = function(session, name) {
