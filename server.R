@@ -93,7 +93,7 @@ server <- shinyServer(function(input, output, session) {
         )
       )
     } else if (isResultView(view)) {
-      computedResults     <- getComputedResults()
+      computedResults     <- getCtxResults(session)
       if (!is.null(computedResults)) {
         results$DB          <- computedResults$DB
         results$full_result <- computedResults$full_result
@@ -605,7 +605,15 @@ saveData <- function(session, result_list, name) {
   result_list  <- append(result_list, list(query = ctx$query))
   saveRDS(result_list, con)
   bytes        <- rawConnectionValue(con)
-  fileDoc      <- ctx$client$fileService$upload(fileDoc, bytes)
+  removeCurrentFiles(session, workflowId, stepId)
+  fileDoc <- ctx$client$fileService$upload(fileDoc, bytes)
+}
+
+getFilesByWorkflowAndStep <- function(ctx, workflowId, stepId) {
+  ctx$client$fileService$findFileByWorkflowIdAndStepId(
+    startKey   = list(workflowId, stepId),
+    endKey     = list(workflowId, ''),
+    descending = TRUE, limit = 10)
 }
 
 getResultsFile = function(session, name) {
@@ -614,10 +622,7 @@ getResultsFile = function(session, name) {
   workflowId <- getWorkflowId(session)
   stepId     <- getStepId(session)
   
-  files <- ctx$client$fileService$findFileByWorkflowIdAndStepId(
-    startKey   = list(workflowId, stepId),
-    endKey     = list(workflowId, ''),
-    descending = TRUE, limit = 4)
+  files <- getFilesByWorkflowAndStep(ctx, workflowId, stepId)
   
   if (length(files) > 0) {
     files <- files[unlist(lapply(files, FUN = function(x) x$name == name))]
@@ -626,6 +631,14 @@ getResultsFile = function(session, name) {
     }
   } 
   result
+}
+
+removeCurrentFiles <- function(session, workflowId, stepId) {
+  ctx   <-  getCtx(session)
+  files <- getFilesByWorkflowAndStep(ctx, workflowId, stepId)
+  for (file in files) {
+    ctx$client$fileService$delete(file$id, file$rev)
+  }
 }
 
 getCtxResults <- function(session) {
