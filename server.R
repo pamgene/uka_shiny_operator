@@ -68,16 +68,11 @@ server <- shinyServer(function(input, output, session) {
           tabPanel("Basic Settings",
                    tags$hr(),
                    selectInput("kinasefamily", label = "Kinase family", choices = c("PTK", "STK")),
-                   tags$hr(),
-                   checkboxInput("usePairing", label = "Use a Pairing Factor"),
-                   conditionalPanel("input.usePairing == true",
-                                    selectInput("pairingFactor",label = "Select the Pairing Factor", choices = "" )
-                   )
+                   sliderInput("scan", "Scan Rank From-To", min = 1, max = 20, value = c(4,12),round = TRUE),
+                   sliderInput("nperms", "Number of permutations", min = 100, max = 1000, value = 500, step = 100, round = TRUE)
           ),
           
           tabPanel("Advanced Settings",
-                   sliderInput("scan", "Scan Rank From-To", min = 1, max = 20, value = c(4,12),round = TRUE),
-                   sliderInput("nperms", "Number of permutations", min = 100, max = 1000, value = 500, step = 100, round = TRUE),
                    tags$hr(),
                    helpText("Set weights for database types:"),
                    sliderInput("wIviv", "In Vitro / In Vivo", min = 0, max = 1, value = 1),
@@ -98,6 +93,7 @@ server <- shinyServer(function(input, output, session) {
         results$DB          <- computedResults$DB
         results$full_result <- computedResults$full_result
         results$df          <- computedResults$df
+        results$settings    <- computedResults$settings
         
         results$kinase2uniprot <- results$DB %>%
           group_by(Kinase_UniprotID) %>%
@@ -115,7 +111,6 @@ server <- shinyServer(function(input, output, session) {
                         step = 1,
                         value = 3),
             tags$hr(),
-            selectInput("spsort", "Rank kinases on", choices = list("Median Score", "Max Score", "Statistic")),
             actionButton("switchToRun", "Switch to Run Analysis View"),
             width = 3),
           mainPanel(
@@ -125,6 +120,7 @@ server <- shinyServer(function(input, output, session) {
                        helpText("Each point is the result of an individual analysis with a different rank cut-off for adding upstream kinases for peptides."),
                        helpText("The size of the points indicates the size of the peptide set used for a kinase in the corresponding analysis."),
                        helpText("The color of the points indicates the specificity score resulting from the corresponding analysis."),
+                       selectInput("spsort", "Sort score plot on", choices = list("Median Score", "Max Score", "Statistic")),
                        plotOutput("scorePlot", height = "1400px")
               ),
               tabPanel("Kinase Volcano",
@@ -153,9 +149,6 @@ server <- shinyServer(function(input, output, session) {
                        )
               ),
               tabPanel("Report",
-                       helpText(""),
-                       downloadButton("report", "Generate report"),
-                       tags$hr(),
                        helpText("The table below shows the settings that were used for this analysis."),
                        dataTableOutput("InfoSettings"),
                        helpText("The table below shows the summary results of the analysis"),
@@ -495,33 +488,6 @@ server <- shinyServer(function(input, output, session) {
       clScale = list(low = as.numeric(input$stlow), mid = as.numeric(input$stmid), high = as.numeric(input$sthigh))
       clr = c(input$cllow, input$clmid, input$clhigh)
       treeFile(fname = file, mappings = Kinase.Name ~ Mean.Kinase.Statistic + Mean.Specificity.Score, data = df,szScale = szScale, clScale = clScale, clValues = clr)
-    }
-  )
-  
-  output$report <- downloadHandler(
-    filename = function() {
-      paste('Report', Sys.Date(), '.html', sep='')
-    },
-    content = function(file) {
-      tmp_dir    <- tempdir()
-      tempReport <- file.path(tmp_dir, "report.Rmd")
-      tempLogo   <- file.path(tmp_dir, "pglogo.png")
-      file.copy("rmd/report.Rmd", tempReport, overwrite = TRUE)
-      file.copy("rmd/pglogo.png", tempLogo, overwrite = TRUE)
-      params <- list(
-        scorePlot     = scorePlot(),
-        volcanoPlot   = volcanoPlot(),
-        summaryTable  = summaryResultTable(),
-        settingsTable = getSettingsInfo(results$settings),
-        grpText       = grpText()
-      )
-      # Knit the document, passing in the `params` list, and eval it in a
-      # child of the global environment (this isolates the code in the document
-      # from the code in this app).
-      rmarkdown::render(tempReport, output_file = file,
-                        params = params,
-                        envir = new.env(parent = globalenv())
-      )
     }
   )
 })
