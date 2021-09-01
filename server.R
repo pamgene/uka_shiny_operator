@@ -12,6 +12,7 @@ library(rmarkdown)
 library(DT)
 source("upstream_analysis.R")
 source("upstream_output.R")
+source("kinase_tree_parser.R")
 
 ############################################
 #### This part should not be modified
@@ -154,25 +155,25 @@ server <- shinyServer(function(input, output, session) {
                        helpText("The table below shows the summary results of the analysis"),
                        dataTableOutput("SummaryTable")
               )
-              #,
-              # tabPanel("Kinase tree",
-              #          tags$a(href = "http://kinhub.org/kinmap/","The summary data can be saved as a file that can be used to map the data to a phylogenetic tree using the external websit Kinmap."),
-              #          helpText(""),
-              #          downloadButton("saveKinMap", "Save data as KinMap file"),
-              #          tags$hr(),
-              #          helpText("The specificty score will be mapped to the symbol size"),
-              #          textInput("sclow", "Scale score from:", 0),
-              #          textInput("schigh","Scale score to:", 2),
-              #          textInput("scmax", "max symbol size", 50),
-              #          tags$hr(),
-              #          helpText("The kinase statistic will be mapped to the symbol color"),
-              #          textInput("stlow", "Scale kinase statistic from:", -1),
-              #          textInput("stmid", "Scale kinase statistic midpoint:", 0),
-              #          textInput("sthigh","Scale kinase statistic to:", 1),
-              #          colourpicker::colourInput("cllow", label = "Low color", value = "green"),
-              #          colourpicker::colourInput("clmid", label = "Mid color", value = "black"),
-              #          colourpicker::colourInput("clhigh", label = "High color", value = "red")
-              # )
+              ,
+              tabPanel("Kinase tree",
+                       tags$a(href = "http://kinhub.org/kinmap/","The summary data can be saved as a file that can be used to map the data to a phylogenetic tree using the external websit Kinmap."),
+                       helpText(""),
+                       downloadButton("saveKinMap", "Save data as KinMap file"),
+                       tags$hr(),
+                       helpText("The specificty score will be mapped to the symbol size"),
+                       textInput("sclow", "Scale score from:", 0),
+                       textInput("schigh","Scale score to:", 2),
+                       textInput("scmax", "max symbol size", 50),
+                       tags$hr(),
+                       helpText("The kinase statistic will be mapped to the symbol color"),
+                       textInput("stlow", "Scale kinase statistic from:", -1),
+                       textInput("stmid", "Scale kinase statistic midpoint:", 0),
+                       textInput("sthigh","Scale kinase statistic to:", 1),
+                       colourpicker::colourInput("cllow", label = "Low color", value = "green"),
+                       colourpicker::colourInput("clmid", label = "Mid color", value = "black"),
+                       colourpicker::colourInput("clhigh", label = "High color", value = "red")
+              )
             )
           )
         )
@@ -476,21 +477,21 @@ server <- shinyServer(function(input, output, session) {
     create_datatable(summaryResultTable())
   })
   
-  # output$saveKinMap <- downloadHandler(
-  #   filename = function() {
-  #     paste("KinMap file", format(Sys.time(), "%Y%m%d-%H%M.txt"))
-  #   },
-  #   content = function(file) {
-  #     df = summaryResultTable()
-  #     colnames(df) = make.names(colnames(df)) # convert formatted column names to valid variable names
-  #     szFrom = c(as.numeric(input$sclow), as.numeric(input$schigh))
-  #     szTo = c(0, as.numeric(input$scmax))
-  #     szScale = list(from = szFrom, to = szTo)
-  #     clScale = list(low = as.numeric(input$stlow), mid = as.numeric(input$stmid), high = as.numeric(input$sthigh))
-  #     clr = c(input$cllow, input$clmid, input$clhigh)
-  #     treeFile(fname = file, mappings = Kinase.Name ~ Mean.Kinase.Statistic + Mean.Specificity.Score, data = df,szScale = szScale, clScale = clScale, clValues = clr)
-  #   }
-  # )
+  output$saveKinMap <- downloadHandler(
+    filename = function() {
+      paste("KinMap file", format(Sys.time(), "%Y%m%d-%H%M.txt"))
+    },
+    content = function(file) {
+      df = summaryResultTable()
+      colnames(df) = make.names(colnames(df)) # convert formatted column names to valid variable names
+      szFrom = c(as.numeric(input$sclow), as.numeric(input$schigh))
+      szTo = c(0, as.numeric(input$scmax))
+      szScale = list(from = szFrom, to = szTo)
+      clScale = list(low = as.numeric(input$stlow), mid = as.numeric(input$stmid), high = as.numeric(input$sthigh))
+      clr = c(input$cllow, input$clmid, input$clhigh)
+      treeFile(fname = file, mappings = Kinase.Name ~ Mean.Kinase.Statistic + Mean.Specificity.Score, data = df,szScale = szScale, clScale = clScale, clValues = clr)
+    }
+  )
 })
 
 getValues <- function(session){
