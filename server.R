@@ -13,6 +13,7 @@ library(DT)
 source("upstream_analysis.R")
 source("upstream_output.R")
 source("kinase_tree_parser.R")
+source("supporting.R")
 
 ############################################
 #### This part should not be modified
@@ -32,7 +33,7 @@ getCtx <- function(session) {
 server <- shinyServer(function(input, output, session) {
   
   results <- reactiveValues()
-  # read database file
+  message <- reactiveValues(text = "")
   DB      <- readRDS("data/db.rds")
   
   dataInput <- reactive({
@@ -46,6 +47,69 @@ server <- shinyServer(function(input, output, session) {
   mode <- reactive({ 
     getMode(session) 
   })
+  
+  summaryResultTable = reactive({
+    df = aSummary()
+    df = left_join(results$kinase2uniprot, df, by = c("Kinase_Name" = "ClassName"))
+    df = df%>% filter(!is.na(medianScore))
+    df = df %>% select(Kinase_UniprotID, Kinase_Name, meanFeatScore, meanPhenoScore, medianScore, maxScore, meanStat, sdStat, meanSetSize)
+    #list("Median Score", "Max Score", "Statistic")
+    if (input$spsort == "Median Score"){
+      df = df %>% arrange(-medianScore)
+    } else if(input$spsort == "Max Score"){
+      df = df %>% arrange(-maxScore)
+    } else if (input$spsort == "Statistic"){
+      df = df%>%arrange(meanStat)
+    }
+    
+    df = df %>% dplyr::rename("Kinase Uniprot ID" = Kinase_UniprotID,
+                              "Kinase Name" = Kinase_Name,
+                              "Mean Specificity Score" = meanFeatScore,
+                              "Mean Significance Score" = meanPhenoScore,
+                              "Median Final score" = medianScore,
+                              "Max Final Score" = maxScore,
+                              "Mean Kinase Statistic" = meanStat,
+                              "SD Kinase Statitistic" = sdStat,
+                              "Mean peptide set size" = meanSetSize)
+  })
+  
+  scorePlot = reactive({
+    aSub <- results$full_result %>% filter(nFeatures >= input$minsetsize)
+    cs   <- makeScorePlot(aSub, input$spsort)
+    xax  <- paste("Normalized kinase statistic (", xaxText(results),")", sep = "")
+    cs   <- cs + ylab(xax)
+  })
+  
+  perPeptidePlot = reactive({
+    makePerPeptidePlot(results$df, results$DB %>% filter(Kinase_Name == input$showKinase))
+  })
+  
+  aSummary = reactive({
+    aSub = results$full_result %>% filter(nFeatures >= input$minsetsize)
+    aSum = makeSummary(aSub)
+    updateSelectInput(session, "showKinase", choices = aSum$ClassName)
+    aSum
+  })
+  
+  volcanoPlot = reactive({
+    vp = makeVolcanoPlot(aSummary())
+    vp = vp + xlab("Mean Kinase Statistic") + ylab("Median Final Score")
+  })
+  
+  detailsTable = reactive({
+    makeDetailsTable(results$df, results$DB %>% filter(Kinase_Name == input$showKinase))
+  })
+  
+  grpText = reactive({
+    grp = results$df[["grp"]]
+    if (!is.null(grp)){
+      txt = paste("Grouping factor with levels", levels(grp)[1], "and", levels(grp)[2])
+    } else {
+      txt = "Grouping factor: none"
+    }
+  })
+  
+  ## Outputs
   
   output$body <- renderUI({
     mode <- mode()
@@ -187,188 +251,13 @@ server <- shinyServer(function(input, output, session) {
         mainPanel())
     }
   })
-  
-  getGroupingLabel = function(values) {
-    if (length(values$colorLabels) > 1) {
-      stop("Need at most one Color to define the grouping")
-    }
-    else if(length(values$colorLabels) == 1) {
-      grouping_label <- values$colorLabels
-      group_factor   <- as.factor(values$data$color)
-      if (length(levels(group_factor)) != 2){
-        stop(paste("Wrong number of groups, found:", levels(group_factor)))
-      }
-      
-      df           <- subset(values$data, .ri = 0)
-      group_factor <- as.factor(df$color)
-      if (min(summary(group_factor)) < 2){
-        stop("Need at least 2 observations per group.")
-      }
-      grouping_label
-    }
-    else {
-      if (max(values$data$.ci) > 0) {
-        stop(paste("Can not run this data without a grouping factor.", values$colorLabels))
-      } else return(NULL)
-    }
-  }
-  
-  observeEvent(mode(), {
-    mode <- mode()
-    if (isRunView(mode)) {
-      nid <<- showNotification("Press Start to start the analysis.", duration = NULL, type = "message", closeButton = FALSE)
-      updateSliderInput(session, "seqHom", min = min(DB$PepProtein_SeqHomology))
-    } else if (isResultView(mode)) {
-      removeNotification(nid)
-    }
-  })
-  
-  observe({
-    ctx  <- getCtx(session)
-    data_input <- dataInput()
-    properties <- propertiesInput()
-    
-    if (is.null(properties)) return()
-    updateSelectInput(session, "kinasefamily", selected = properties$Kinase_family)
-    
-    if (is.null(data_input)) return()
-    
-    if (length(ctx$cnames) > 0) {
-      poptions <- unlist(ctx$cnames)
-      updateSelectInput(session, "pairingFactor", choices = poptions)
-    }
-    output$status = renderText({
-      grp = getGroupingLabel(data_input)
-      if (input$start == 0){
-        if (properties$Lock_kinase_family == "Yes") {
-          shinyjs::disable("kinasefamily")
-        }
-        if (!is.null(grp)){
-          return(paste("Grouping factor:", grp))
-        } else {
-          return("Grouping factor: none")
-        }
-      }
-      
-      shinyjs::disable("kinasefamily")
-      shinyjs::disable("scan")
-      shinyjs::disable("nperms")
-      shinyjs::disable("wIviv")
-      shinyjs::disable("wPhosphoNET")
-      shinyjs::disable("seqHom")
-      shinyjs::disable("minPScore")
-      shinyjs::disable("usePairing")
-      shinyjs::disable("pairingFactor")
-      
-      df <- data_input$data
-      
-      # checks
-      check(NonUniqueDataMapping, df, openUrlOnError = TRUE)
-      check(MultipleValuesPerCell, df)
-      check(EmptyCells, df)
-      
-      if (!is.null(data_input$hasZeroScaleRows) && data_input$hasZeroScaleRows) {
-        zIdx <- data_input$getZeroScaleRows()
-        df   <- df %>% filter (!(rowSeq %in% zIdx))
-        msg  <- paste("Warning:", length(zIdx), "peptides with zero scale have been removed from the data")
-        showNotification(ui = msg, duration = NULL, type = "warning")
-      } 
-      
-      if (input$kinasefamily == "PTK") {
-        DB <- DB %>% filter(PepProtein_Residue == "Y")
-      } else if(input$kinasefamily == "STK") {
-        DB <- DB %>% filter(PepProtein_Residue == "S" |  PepProtein_Residue == "T")
-      } else {
-        stop("Unknown value for kinase family")
-      }
-      
-      DB <- DB %>% 
-        filter(PepProtein_SeqHomology >= input$seqHom)  %>%
-        filter(Kinase_PKinase_PredictorVersion2Score >= input$minPScore | Database == "iviv") %>%
-        filter(Kinase_Rank <= input$scan[2])
-      
-      showNotification(ui = "Please wait ... running analysis.", id = nid, type = "message", closeButton = FALSE, duration = NULL)
-      
-      if (input$seed) {
-        set.seed(42)
-      }
-      
-      if (!is.null(grp)) {
-        df$grp <- as.factor(df$color)
-        result <- pgScanAnalysis2g(df, dbFrame = DB,
-                                   scanRank = input$scan[1]:input$scan[2],
-                                   nPermutations = input$nperms,
-                                   dbWeights = c(iviv = input$wIviv,
-                                                 PhosphoNET = input$wPhosphoNET
-                                   ))
-      } else {
-        result <- pgScanAnalysis0(df, dbFrame = DB,
-                                  scanRank = input$scan[1]:input$scan[2],
-                                  nPermutations = input$nperms,
-                                  dbWeights = c(iviv = input$wIviv,
-                                                PhosphoNET = input$wPhosphoNET
-                                  ))
-      }
-      showNotification(ui = "Done", id = nid, type = "message", closeButton = FALSE)
-      full_result <- ldply(result, .fun = function(.) return(data.frame(.$result, mxRank = .$mxRank)))
-      
-      settings = data.frame(setting = c("Kinase family", "ScanRank Min", "ScanRank Max", "Number of Permutations", "In Vitro In Vitro weight", "PhosphoNET weight", "Min PhosphoNet score", "Min Sequence Homology"),
-                            value   = c(input$kinasefamily, input$scan[1] , input$scan[2], input$nperms, input$wIviv, input$wPhosphoNET, input$minPScore, input$seqHom) )
-      
-      # save objects in tercen context
-      saveData(session, list(df = df, full_result = full_result, settings = settings, DB = DB), "results")
-      return("Done")
-    })
-  })
-  
-  # RESULT
-  grpText = reactive({
-    grp = results$df[["grp"]]
-    if (!is.null(grp)){
-      txt = paste("Grouping factor with levels", levels(grp)[1], "and", levels(grp)[2])
-    } else {
-      txt = "Grouping factor: none"
-    }
-  })
-  
+
   output$grpText = renderText({
     grpText()
   })
   
-  xaxText = function(){
-    grp = results$df[["grp"]]
-    if (!is.null(grp)){
-      txt = paste(">0 indicates higher activity in the",as.character(levels(grp)[2]), "group")
-    } else {
-      return(NULL)
-    }
-  }
-  
-  scorePlot = reactive({
-    aSub <- results$full_result %>% filter(nFeatures >= input$minsetsize)
-    cs   <- makeScorePlot(aSub, input$spsort)
-    xax  <- paste("Normalized kinase statistic (", xaxText(),")", sep = "")
-    cs   <- cs + ylab(xax)
-  })
-  
-  perPeptidePlot = reactive({
-    makePerPeptidePlot(results$df, results$DB %>% filter(Kinase_Name == input$showKinase))
-  })
-  
   output$scorePlot = renderPlot({
     print(scorePlot())
-  })
-  
-  aSummary = reactive({
-    aSub = results$full_result %>% filter(nFeatures >= input$minsetsize)
-    aSum = makeSummary(aSub)
-    updateSelectInput(session, "showKinase", choices = aSum$ClassName)
-    aSum
-  })
-  
-  volcanoPlot = reactive({
-    vp = makeVolcanoPlot(aSummary())
-    vp = vp + xlab("Mean Kinase Statistic") + ylab("Median Final Score")
   })
   
   output$volcanoPlot = renderPlot({
@@ -388,60 +277,12 @@ server <- shinyServer(function(input, output, session) {
     create_datatable(aTable)
   })
   
-  observeEvent(input$showKinase, {
-    upid = results$kinase2uniprot %>% filter(Kinase_Name == input$showKinase)%>%.$Kinase_UniprotID
-    aLabel = paste(input$showKinase," (",upid,") on Uniprot.org", sep = "")
-    updateActionButton(session, "uniprot", label = aLabel)
-  })
-  
-  
-  detailsTable = reactive({
-    makeDetailsTable(results$df, results$DB %>% filter(Kinase_Name == input$showKinase))
-  })
-  
   output$kinaseDetails = renderDataTable({
     create_datatable(detailsTable())
   })
   
   output$InfoSettings = renderDataTable({
     create_datatable(getSettingsInfo(results$settings))
-  })
-  
-  observeEvent(input$saveDetailsTable, {
-    aTable = detailsTable()
-    filename = file.path(getFolder(), paste(gsub("/", "-",input$showKinase), format(Sys.time(), "%Y%m%d-%H%M.txt")) )
-    write.table(aTable, filename, sep = "\t", quote = FALSE, row.names = FALSE)
-    shell.exec(getFolder())
-  })
-  
-  observeEvent(input$uniprot, {
-    upid = results$kinase2uniprot %>% filter(Kinase_Name == input$showKinase)%>%.$Kinase_UniprotID
-    browseURL(paste("http://www.uniprot.org/uniprot/", upid, sep = ""))
-  })
-  
-  summaryResultTable = reactive({
-    df = aSummary()
-    df = left_join(results$kinase2uniprot, df, by = c("Kinase_Name" = "ClassName"))
-    df = df%>% filter(!is.na(medianScore))
-    df = df %>% select(Kinase_UniprotID, Kinase_Name, meanFeatScore, meanPhenoScore, medianScore, maxScore, meanStat, sdStat, meanSetSize)
-    #list("Median Score", "Max Score", "Statistic")
-    if (input$spsort == "Median Score"){
-      df = df %>% arrange(-medianScore)
-    } else if(input$spsort == "Max Score"){
-      df = df %>% arrange(-maxScore)
-    } else if (input$spsort == "Statistic"){
-      df = df%>%arrange(meanStat)
-    }
-    
-    df = df %>% dplyr::rename("Kinase Uniprot ID" = Kinase_UniprotID,
-                              "Kinase Name" = Kinase_Name,
-                              "Mean Specificity Score" = meanFeatScore,
-                              "Mean Significance Score" = meanPhenoScore,
-                              "Median Final score" = medianScore,
-                              "Max Final Score" = maxScore,
-                              "Mean Kinase Statistic" = meanStat,
-                              "SD Kinase Statitistic" = sdStat,
-                              "Mean peptide set size" = meanSetSize)
   })
   
   output$SummaryTable = renderDataTable({
@@ -463,6 +304,136 @@ server <- shinyServer(function(input, output, session) {
       treeFile(fname = file, mappings = Kinase.Name ~ Mean.Kinase.Statistic + Mean.Specificity.Score, data = df,szScale = szScale, clScale = clScale, clValues = clr)
     }
   )
+  
+  ## Observe (event)
+  observe({
+    ctx  <- getCtx(session)
+    data_input <- dataInput()
+    properties <- propertiesInput()
+    
+    if (is.null(properties)) return()
+    updateSelectInput(session, "kinasefamily", selected = properties$Kinase_family)
+    
+    if (is.null(data_input)) return()
+    
+    if (length(ctx$cnames) > 0) {
+      poptions <- unlist(ctx$cnames)
+      updateSelectInput(session, "pairingFactor", choices = poptions)
+    }
+    
+    if (!is.null(input$start) && input$start == 0) {
+      grp = getGroupingLabel(data_input)
+      if (properties$Lock_kinase_family == "Yes") {
+        shinyjs::disable("kinasefamily")
+      }
+      if (!is.null(grp)){
+        message$text <- paste("Grouping factor:", grp)
+      } else {
+        message$text <- "Grouping factor: none"
+      }
+    }
+    output$status = renderText({ message$text })
+  })
+  
+  observeEvent(input$showKinase, {
+    upid = results$kinase2uniprot %>% filter(Kinase_Name == input$showKinase)%>%.$Kinase_UniprotID
+    aLabel = paste(input$showKinase," (",upid,") on Uniprot.org", sep = "")
+    updateActionButton(session, "uniprot", label = aLabel)
+  })
+  
+  observeEvent(mode(), {
+    mode <- mode()
+    if (isRunView(mode)) {
+      nid <<- showNotification("Press Start to start the analysis.", duration = NULL, type = "message", closeButton = FALSE)
+      updateSliderInput(session, "seqHom", min = min(DB$PepProtein_SeqHomology))
+    } else if (isResultView(mode)) {
+      removeNotification(nid)
+    }
+  })
+  
+  observeEvent(input$saveDetailsTable, {
+    aTable = detailsTable()
+    filename = file.path(getFolder(), paste(gsub("/", "-",input$showKinase), format(Sys.time(), "%Y%m%d-%H%M.txt")) )
+    write.table(aTable, filename, sep = "\t", quote = FALSE, row.names = FALSE)
+    shell.exec(getFolder())
+  })
+  
+  observeEvent(input$uniprot, {
+    upid = results$kinase2uniprot %>% filter(Kinase_Name == input$showKinase)%>%.$Kinase_UniprotID
+    browseURL(paste("http://www.uniprot.org/uniprot/", upid, sep = ""))
+  })
+  
+  # calculation
+  observeEvent(input$start, {
+    lapply(c("start", "kinasefamily", "scan", "nperms", "wIviv", "wPhosphoNET", "seqHom", "minPScore", "usePairing", "pairingFactor"), shinyjs::disable)
+    
+    ctx  <- getCtx(session)
+    properties <- propertiesInput()
+    data_input <- dataInput()
+    grp <- getGroupingLabel(data_input)
+    df <- data_input$data
+    
+    # checks
+    check(NonUniqueDataMapping, df, openUrlOnError = TRUE)
+    check(MultipleValuesPerCell, df)
+    check(EmptyCells, df)
+    
+    if (!is.null(data_input$hasZeroScaleRows) && data_input$hasZeroScaleRows) {
+      zIdx <- data_input$getZeroScaleRows()
+      df   <- df %>% filter (!(rowSeq %in% zIdx))
+      msg  <- paste("Warning:", length(zIdx), "peptides with zero scale have been removed from the data")
+      showNotification(ui = msg, duration = NULL, type = "warning")
+    } 
+    
+    if (input$kinasefamily == "PTK") {
+      DB <- DB %>% filter(PepProtein_Residue == "Y")
+    } else if(input$kinasefamily == "STK") {
+      DB <- DB %>% filter(PepProtein_Residue == "S" |  PepProtein_Residue == "T")
+    } else {
+      stop("Unknown value for kinase family")
+    }
+    
+    DB <- DB %>% 
+      filter(PepProtein_SeqHomology >= input$seqHom)  %>%
+      filter(Kinase_PKinase_PredictorVersion2Score >= input$minPScore | Database == "iviv") %>%
+      filter(Kinase_Rank <= input$scan[2])
+    
+    showNotification(ui = "Please wait ... running analysis.", id = nid, type = "message", closeButton = FALSE, duration = NULL)
+    
+    if (input$seed) {
+      set.seed(42)
+    }
+    
+    if (!is.null(grp)) {
+      df$grp <- as.factor(df$color)
+      result <- pgScanAnalysis2g(df, dbFrame = DB,
+                                 scanRank = input$scan[1]:input$scan[2],
+                                 nPermutations = input$nperms,
+                                 dbWeights = c(iviv = input$wIviv,
+                                               PhosphoNET = input$wPhosphoNET
+                                 ))
+    } else {
+      result <- pgScanAnalysis0(df, dbFrame = DB,
+                                scanRank = input$scan[1]:input$scan[2],
+                                nPermutations = input$nperms,
+                                dbWeights = c(iviv = input$wIviv,
+                                              PhosphoNET = input$wPhosphoNET
+                                ))
+    }
+    showNotification(ui = "Done", id = nid, type = "message", closeButton = FALSE)
+    full_result <- ldply(result, .fun = function(.) return(data.frame(.$result, mxRank = .$mxRank)))
+    
+    settings = data.frame(setting = c("Kinase family", "ScanRank Min", "ScanRank Max", "Number of Permutations", "In Vitro In Vitro weight", "PhosphoNET weight", "Min PhosphoNet score", "Min Sequence Homology"),
+                          value   = c(input$kinasefamily, input$scan[1] , input$scan[2], input$nperms, input$wIviv, input$wPhosphoNET, input$minPScore, input$seqHom) )
+    
+    # save objects in tercen context
+    saveData(session, list(df = df, full_result = full_result, settings = settings, DB = DB), "results")
+    
+    lapply(c("start", "scan", "nperms", "wIviv", "wPhosphoNET", "seqHom", "minPScore", "usePairing", "pairingFactor"), shinyjs::enable)
+    if (properties$Lock_kinase_family == "No") { shinyjs::enable("kinasefamily")  }
+    message$text = "Done"
+  })
+  
 })
 
 getValues <- function(session){
@@ -546,6 +517,14 @@ saveData <- function(session, result_list, name) {
   bytes        <- rawConnectionValue(con)
   removeCurrentFiles(session, workflowId, stepId)
   fileDoc <- ctx$client$fileService$upload(fileDoc, bytes)
+  
+  # call save to indicate step has a result
+  ctx %>%
+    select(.y, .ci, .ri) %>%
+    group_by(.ci, .ri) %>%
+    summarise(mean = mean(.y)) %>%
+    ctx$addNamespace() %>%
+    ctx$save()
 }
 
 getFilesByWorkflowAndStep <- function(ctx, workflowId, stepId) {
