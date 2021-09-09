@@ -177,6 +177,14 @@ server <- shinyServer(function(input, output, session) {
           )
         )
       }
+    } else {
+      sidebarLayout(
+        sidebarPanel(
+          tags$div(HTML("<strong><font color = #6895d1>Upstream Kinase Analysis</font></strong>")),
+          tags$hr(),
+          tags$div(HTML(paste("Mode is:", mode))),
+          width = 3),
+        mainPanel())
     }
   })
   
@@ -594,12 +602,12 @@ inputDataEqual <- function(ctx, results) {
 }
 
 isShowView <- function(mode) {
-  mode == "show"
+  !is.null(mode) && mode == "show"
 }
 isRunView <- function(mode) {
-  mode == "run"
+  !is.null(mode) && mode == "run"
 }
 isResultView <- function(mode) {
-  mode == "showResult"
+  !is.null(mode) && mode == "showResult"
 }
 

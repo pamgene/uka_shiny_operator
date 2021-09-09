@@ -4,6 +4,7 @@
   "tags": ["kinase", "pamgene"],
   "authors": ["tercen"],
   "urls": ["https://github.com/tercen/upstream_kinase_analysis_shiny_operator"],
+  "isViewOnly": false,
   "properties": [
    {
     "kind": "EnumeratedProperty",
