@@ -59,7 +59,7 @@ server <- shinyServer(function(input, output, session) {
     } else if(input$spsort == "Max Score"){
       df = df %>% arrange(-maxScore)
     } else if (input$spsort == "Statistic"){
-      df = df%>%arrange(meanStat)
+      df = df %>% arrange(meanStat)
     }
     
     df = df %>% dplyr::rename("Kinase Uniprot ID" = Kinase_UniprotID,
@@ -114,45 +114,9 @@ server <- shinyServer(function(input, output, session) {
   output$body <- renderUI({
     mode <- mode()
     if (isShowView(mode)) {
-      sidebarLayout(
-        sidebarPanel(
-          tags$div(HTML("<strong><font color = #6895d1>Upstream Kinase Analysis</font></strong>")),
-          tags$hr(),
-          tags$div(HTML("Please run this operator, via the Run button")),
-          width = 3),
-        mainPanel())
+      createInitialView(disableRun = TRUE)
     } else if (isRunView(mode)) {
-      sidebarLayout(
-        sidebarPanel(
-          tags$div(HTML("<strong><font color = #6895d1>Upstream Kinase Analysis</font></strong>")),
-          tags$hr(),
-          actionButton("start", "Start"),
-          tags$hr(),
-          textOutput("status")
-        ),
-        mainPanel(tabsetPanel(
-          tabPanel("Basic Settings",
-                   tags$hr(),
-                   selectInput("kinasefamily", label = "Kinase family", choices = c("PTK", "STK")),
-                   sliderInput("scan", "Scan Rank From-To", min = 1, max = 20, value = c(4,12),round = TRUE),
-                   sliderInput("nperms", "Number of permutations", min = 100, max = 1000, value = 500, step = 100, round = TRUE)
-          ),
-          
-          tabPanel("Advanced Settings",
-                   tags$hr(),
-                   helpText("Set weights for database types:"),
-                   sliderInput("wIviv", "In Vitro / In Vivo", min = 0, max = 1, value = 1),
-                   sliderInput("wPhosphoNET", "In Silico (PhosphoNET)", min = 0, max = 1, value = 1),
-                   tags$hr(),
-                   helpText("Set minimal sequence homology required to link a peptide to a phosphosite"),
-                   sliderInput("seqHom", "Minimal sequence homology", min =0, max = 1, value =0.9),
-                   tags$hr(),
-                   numericInput("minPScore", "Minimal PhosphoNET prediction score", value = 300),
-                   tags$hr(),
-                   checkboxInput("seed", "Set seed for random permutations"))
-        )
-        )
-      )
+      createInitialView()
     } else if (isResultView(mode)) {
       computedResults     <- getCtxResults(session)
       if (!is.null(computedResults)) {
@@ -167,7 +131,7 @@ server <- shinyServer(function(input, output, session) {
         
         sidebarLayout(
           sidebarPanel(
-            tags$div(HTML("<strong><font color = #6895d1>Upstream Kinase Analysis</font></strong>")),
+            create_UI_title(),
             tags$hr(),
             textOutput("grpText"),
             tags$hr(),
@@ -241,14 +205,6 @@ server <- shinyServer(function(input, output, session) {
           )
         )
       }
-    } else {
-      sidebarLayout(
-        sidebarPanel(
-          tags$div(HTML("<strong><font color = #6895d1>Upstream Kinase Analysis</font></strong>")),
-          tags$hr(),
-          tags$div(HTML(paste("Mode is:", mode))),
-          width = 3),
-        mainPanel())
     }
   })
 
@@ -347,7 +303,9 @@ server <- shinyServer(function(input, output, session) {
       nid <<- showNotification("Press Start to start the analysis.", duration = NULL, type = "message", closeButton = FALSE)
       updateSliderInput(session, "seqHom", min = min(DB$PepProtein_SeqHomology))
     } else if (isResultView(mode)) {
-      removeNotification(nid)
+      if (exists("nid")) { 
+        removeNotification(nid) 
+      }
     }
   })
   
