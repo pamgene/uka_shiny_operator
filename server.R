@@ -395,19 +395,23 @@ server <- shinyServer(function(input, output, session) {
 })
 
 getValues <- function(session){
-  ctx <- getCtx(session)
+  ctx    <- getCtx(session)
   values <- list()
   
-  if (!"ID" %in% names(ctx$rnames)) {
-    stop("ID field should be available as row name")
+  
+  if (length(names(ctx$rnames)) != 1) {
+    stop("A single row name should be defined.")
   }
   
+  row_name <- ctx %>% 
+    rselect() %>% 
+    colnames()
   data     <- ctx %>% 
     select(.y, .ri, .ci) %>%
     mutate(color = ctx$select(ctx$colors) %>% pull)
   row_data <- ctx %>% 
-    rselect("ID") %>% 
-    mutate(ID = as.factor(ID)) %>%
+    rselect() %>% 
+    rename(ID = !!row_name) %>%
     mutate(.ri = seq(0, length(unique(data$.ri))-1))
   
   values$data <- data %>%
