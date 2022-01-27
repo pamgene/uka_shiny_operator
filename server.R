@@ -331,17 +331,18 @@ server <- shinyServer(function(input, output, session) {
     grp <- getGroupingLabel(data_input)
     df <- data_input$data
     
+    # remove peptides with missing data
+    zIdx <- df %>% group_by(.ri) %>% tally() %>% filter(n != max(n)) %>% pull(.ri)
+    if (!is.null(zIdx) && length(zIdx) > 0 ) {
+      df   <- df %>% filter (!(.ri %in% zIdx))
+      msg  <- paste("Warning:", length(zIdx), "peptides with missing data have been removed from the data")
+      showNotification(ui = msg, duration = NULL, type = "warning")
+    }
+    
     # checks
     check(NonUniqueDataMapping, df, openUrlOnError = TRUE)
     check(MultipleValuesPerCell, df)
     check(EmptyCells, df)
-    
-    if (!is.null(data_input$hasZeroScaleRows) && data_input$hasZeroScaleRows) {
-      zIdx <- data_input$getZeroScaleRows()
-      df   <- df %>% filter (!(rowSeq %in% zIdx))
-      msg  <- paste("Warning:", length(zIdx), "peptides with zero scale have been removed from the data")
-      showNotification(ui = msg, duration = NULL, type = "warning")
-    } 
     
     if (input$kinasefamily == "PTK") {
       DB <- DB %>% filter(PepProtein_Residue == "Y")
@@ -413,7 +414,7 @@ getValues <- function(session){
     rselect() %>% 
     rename(ID = !!row_name) %>%
     mutate(.ri = seq(0, length(unique(data$.ri))-1))
-  
+
   values$data <- data %>%
     left_join(., row_data)
   
@@ -551,4 +552,3 @@ isRunView <- function(mode) {
 isResultView <- function(mode) {
   !is.null(mode) && mode == "showResult"
 }
-
