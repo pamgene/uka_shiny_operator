@@ -1,7 +1,7 @@
 # Supporting functions
 
 create_UI_title <- function() {
-  tags$div(HTML("<strong><font color = #6895d1>Upstream Kinase Analysis</font></strong>"))
+  tags$div(HTML("<strong><font color = #6895d1>Upstream Kinase Analysis - January 2022</font></strong>"))
 }
 
 # initial view for show and run mode
