@@ -18,13 +18,19 @@ source("supporting.R")
 ############################################
 #### This part should not be modified
 getCtx <- function(session) {
-  # retreive url query parameters provided by tercen
-  query <- parseQueryString(session$clientData$url_search)
-  token <- query[["token"]]
-  taskId <- query[["taskId"]]
-  
-  # create a Tercen context object using the token
-  ctx <- tercenCtx(taskId = taskId, authToken = token)
+  # # retreive url query parameters provided by tercen
+  # query <- parseQueryString(session$clientData$url_search)
+  # token <- query[["token"]]
+  # taskId <- query[["taskId"]]
+  # 
+  # # create a Tercen context object using the token
+  # ctx <- tercenCtx(taskId = taskId, authToken = token)
+  options("tercen.serviceUri" = "http://tercen:5400/api/v1/")
+  options("tercen.workflowId" = "de1331176101541a180ab2aa4400fd83")
+  options("tercen.stepId" = "6d436e30-a13f-11ec-a622-f50450778edf")
+  options("tercen.username" = "admin")
+  options("tercen.password" = "admin")
+  ctx = tercenCtx()
   return(ctx)
 }
 ####
@@ -90,14 +96,17 @@ server <- shinyServer(function(input, output, session) {
           distinct(ClassName, Kinase_group) %>%
           arrange(match(ClassName, axis_order)) %>%
           pull(Kinase_group)
+    
+    properties <- propertiesInput()
 
-    if (sum(grepl("Y", DB$PepProtein_Residue)) > 0) {
+    if (properties$Kinase_family == "PTK") {
       kinLabelColors <- ifelse(kinLabelGroup == "TK", "black", "red")
-    } else if (sum(grepl("Y", DB$PepProtein_Residue)) == 0) {
+    } else if (properties$Kinase_family == "STK") {
       kinLabelColors <- ifelse(kinLabelGroup == "TK", "red", "black")
     }
-
+    
     cs <- cs + ylab(xax) + theme(axis.text.y = element_text(colour = kinLabelColors))
+    
 
     # cs   <- cs + ylab(xax)
   })
