@@ -22,7 +22,7 @@ getCtx <- function(session) {
   query <- parseQueryString(session$clientData$url_search)
   token <- query[["token"]]
   taskId <- query[["taskId"]]
-  
+
   # create a Tercen context object using the token
   ctx <- tercenCtx(taskId = taskId, authToken = token)
   return(ctx)
@@ -90,14 +90,17 @@ server <- shinyServer(function(input, output, session) {
           distinct(ClassName, Kinase_group) %>%
           arrange(match(ClassName, axis_order)) %>%
           pull(Kinase_group)
+    
+    properties <- propertiesInput()
 
-    if (sum(grepl("Y", DB$PepProtein_Residue)) > 0) {
+    if (properties$Kinase_family == "PTK") {
       kinLabelColors <- ifelse(kinLabelGroup == "TK", "black", "red")
-    } else if (sum(grepl("Y", DB$PepProtein_Residue)) == 0) {
+    } else if (properties$Kinase_family == "STK") {
       kinLabelColors <- ifelse(kinLabelGroup == "TK", "red", "black")
     }
-
+    
     cs <- cs + ylab(xax) + theme(axis.text.y = element_text(colour = kinLabelColors))
+    
 
     # cs   <- cs + ylab(xax)
   })
