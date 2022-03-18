@@ -77,9 +77,16 @@ makePerPeptidePlot = function(df, dbFrame, scanRank = NULL, minPScore = NULL) {
   
   if (!is.null(df[["grp"]])) {
     perPepStats = peptideAnalysis(df)
-    perPepStats = perPepStats %>% group_by(ID) %>% mutate(lowestRank = )
-    #ppp = ggplot(perPepStats, aes(x = reorder(ID, -lowRank), colour = as.factor(lowRank), y = pes, ymin = cil, ymax = ciu)) + geom_point() + geom_errorbar()
-    ppp = ggplot(perPepStats, aes(x = ID, y = pes, ymin = cil, ymax = ciu)) + geom_point() + geom_errorbar()
+    perPepStats = perPepStats %>% group_by(ID) %>% do({
+      thisPep = subset(dbFrame, ID == .$ID[1])
+      aResult = data.frame(pes = .$pes,
+                           ciu = .$ciu,
+                           cil = .$cil,
+                           pval = .$pval,
+                           lowRank = min(thisPep$Kinase_Rank)
+      )
+    })
+    ppp = ggplot(perPepStats, aes(x = reorder(ID, -lowRank), colour = as.factor(lowRank), y = pes, ymin = cil, ymax = ciu)) + geom_point() + geom_errorbar()
     ppp = ppp + coord_flip()
     ppp = ppp + xlab("Peptide ID") + ylab("Group difference")
     ppp = ppp + geom_abline(slope = 0)
