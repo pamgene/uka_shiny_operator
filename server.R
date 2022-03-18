@@ -18,19 +18,13 @@ source("supporting.R")
 ############################################
 #### This part should not be modified
 getCtx <- function(session) {
-  # # retreive url query parameters provided by tercen
-  # query <- parseQueryString(session$clientData$url_search)
-  # token <- query[["token"]]
-  # taskId <- query[["taskId"]]
-  # 
-  # # create a Tercen context object using the token
-  # ctx <- tercenCtx(taskId = taskId, authToken = token)
-  options("tercen.serviceUri" = "http://tercen:5400/api/v1/")
-  options("tercen.workflowId" = "de1331176101541a180ab2aa4400fd83")
-  options("tercen.stepId" = "6d436e30-a13f-11ec-a622-f50450778edf")
-  options("tercen.username" = "admin")
-  options("tercen.password" = "admin")
-  ctx = tercenCtx()
+  # retreive url query parameters provided by tercen
+  query <- parseQueryString(session$clientData$url_search)
+  token <- query[["token"]]
+  taskId <- query[["taskId"]]
+
+  # create a Tercen context object using the token
+  ctx <- tercenCtx(taskId = taskId, authToken = token)
   return(ctx)
 }
 ####
