@@ -99,10 +99,7 @@ server <- shinyServer(function(input, output, session) {
       kinLabelColors <- ifelse(kinLabelGroup == "TK", "red", "black")
     }
     
-    cs <- cs + ylab(xax) + theme(axis.text.y = element_text(colour = kinLabelColors))
-    
-
-    # cs   <- cs + ylab(xax)
+    cs + ylab(xax) + theme(axis.text.y = element_text(colour = kinLabelColors))
   })
 
   perPeptidePlot = reactive({

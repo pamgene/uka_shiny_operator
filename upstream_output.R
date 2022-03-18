@@ -28,10 +28,10 @@ makeScorePlot = function (aFrame, plotorder = "score") {
                                        labels = c(0, 1.3, 2),
                                        limits = c(0,1))
   prt2 = prt2 + scale_size(breaks = c(10,20,31), labels = c("10", "20", ">30"))
-  prt2 = prt2 + ylab("Normalized kinase statistic") + xlab("Kinase name")
+  prt2 = prt2 + xlab("Kinase name")
   yRange = layer_scales(prt2)$y$range$range
-  prt2 = prt2 + scale_y_continuous(position = "top", limits = c( min(0, yRange[1]), max(0, yRange[2])) )
-  prt2 = prt2 + guides( size = guide_legend("Peptide set size"), color = guide_colorbar("Specificity score"))
+  prt2 = prt2 + scale_y_continuous(position = "right", limits = c(min(0, yRange[1]), max(0, yRange[2])))
+  prt2 = prt2 + guides(size = guide_legend("Peptide set size"), color = guide_colorbar("Specificity score"))
   return(prt2)
 }
 
