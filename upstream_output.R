@@ -145,5 +145,8 @@ getSettingsInfo = function(settings) {
 }
 
 create_datatable <- function(data) {
-  datatable(data, extensions = 'Buttons', options = list(dom = 'Blfrtip', buttons = c('copy', 'csv', 'excel', 'pdf', 'print')))
+  datatable(data, extensions = 'Buttons', options = list(dom = 'Blfrtip', 
+                                                         buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+                                                         paging = TRUE,
+                                                         pageLength = 100))
 }
