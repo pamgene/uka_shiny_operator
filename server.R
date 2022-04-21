@@ -54,7 +54,7 @@ server <- shinyServer(function(input, output, session) {
     group_names <- DB %>% ungroup() %>% distinct(Kinase_Name, Kinase_group, Kinase_family)
     df <- left_join(df, group_names, by = c("Kinase_Name" = "Kinase_Name"))
     df = df %>% filter(!is.na(medianScore))
-    df = df %>% select(Kinase_UniprotID, Kinase_Name, Kinase_group, Kinase_family, meanFeatScore, meanPhenoScore, medianScore, maxScore, meanStat, sdStat, meanSetSize)
+    df = df %>% select(Kinase_UniprotID, Kinase_Name, Kinase_group, Kinase_family, meanFeatScore, meanPhenoScore, medianScore, maxScore, meanStat, medianStat, sdStat, meanSetSize)
     #list("Median Score", "Max Score", "Statistic")
     if (input$spsort == "Median Score") {
       df = df %>% arrange(-medianScore)
@@ -73,6 +73,7 @@ server <- shinyServer(function(input, output, session) {
                               "Median Final score" = medianScore,
                               "Max Final Score" = maxScore,
                               "Mean Kinase Statistic" = meanStat,
+                              "Median Kinase Statistic" = medianStat,
                               "SD Kinase Statitistic" = sdStat,
                               "Mean peptide set size" = meanSetSize)
   })
