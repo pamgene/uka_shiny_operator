@@ -8,7 +8,11 @@
 
 Input projection|.
 ---|---
-`y-axis`        | numeric, y value per cell 
+`y-axis`        | numeric, single y value per cell
+`row`           | peptides
+`column`| samples ? observations
+`color`|grouping factor for the analysis
+
 
 Input parameters|.
 ---|---
