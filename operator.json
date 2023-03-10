@@ -4,25 +4,21 @@
   "tags": ["kinase", "pamgene"],
   "authors": ["tercen"],
   "urls": ["https://github.com/pamgene/upstream_kinase_analysis_shiny_operator"],
-  "isViewOnly": false,
+  "isViewOnly": [false],
   "properties": [
-   {
-    "kind": "EnumeratedProperty",
-    "name": "Kinase_family",
-    "description": "Family type",
-    "defaultValue": "PTK",
-    "values": [
-      "PTK",
-      "STK"]
-  },
-  {
-    "kind": "EnumeratedProperty",
-    "name": "Lock_kinase_family",
-    "description": "Lock_kinase_family",
-    "defaultValue": "Yes",
-    "values": [
-      "Yes",
-      "No"]
-  }
+    {
+      "kind": "EnumeratedProperty",
+      "name": "Kinase_family",
+      "description": "Family type",
+      "defaultValue": "PTK",
+      "values": ["PTK", "STK"]
+    },
+    {
+      "kind": "EnumeratedProperty",
+      "name": "Lock_kinase_family",
+      "description": "Lock_kinase_family",
+      "defaultValue": "Yes",
+      "values": ["Yes", "No"]
+    }
   ]
 }
