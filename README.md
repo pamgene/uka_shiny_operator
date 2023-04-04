@@ -2,7 +2,7 @@
 
 ##### Description
 
-`upstream_kinase_analysis_shiny_operator` is an application that allows users to converts a list of peptides into a list of kinases. 
+`upstream_kinase_analysis_shiny_operator` is an application that allows users to convert a list of peptides into a list of kinases. 
 
 ##### Usage
 
