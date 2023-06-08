@@ -17,7 +17,7 @@
       "kind": "EnumeratedProperty",
       "name": "Lock_kinase_family",
       "description": "Lock_kinase_family",
-      "defaultValue": "Yes",
+      "defaultValue": "No",
       "values": ["Yes", "No"]
     }
   ]
