@@ -2,10 +2,17 @@
 library(combinat)
 library(data.table)
 
-setStats = function(M, classMat, grp, statfun){
+setStats = function(M, classMat, grp, statfun) {
   # statistic per set
   setStat = t(classMat) %*% statfun(M, grp)
   return(setStat)
+}
+
+stat.identity = function(X, grp = NULL, pair = NULL){
+  # return M as a columns vector, ignore grp
+  # this is intended for the case that the dataMatrix is in fact a column vector with stats.
+  M = matrix(nrow = length(X), ncol = 1, data = X)
+  return(M)
 }
 
 stat.snr = function(M, grp, pair = NULL){
@@ -152,7 +159,7 @@ pgScanAnalysis0 = function(df, dbFrame,
     M[!is.finite(M)] = 0
     inx2 = intersect(df$ID, rownames(M))
     dfx =  df%>%filter(ID %in% inx2)
-    X = matrix(ncol = dim(dfx)[1], nrow = 1, data = dfx$value)
+    X = matrix(ncol = dim(dfx)[1], nrow = 1, data = dfx$.y)
     colnames(X) = dfx$ID
     M = M[rownames(M) %in% inx2,]
     M = M[order(rownames(M)),]
