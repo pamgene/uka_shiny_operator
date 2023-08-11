@@ -446,7 +446,7 @@ getValues <- function(session) {
     rselect() %>%
     colnames()
   data <- ctx %>%
-    select(.y, .ri, .ci) %>%
+    select(.y, .ri, .ci, .sids, .tlbIdx) %>%
     mutate(color = ctx$select(ctx$colors) %>% pull)
   row_data <- ctx %>%
     rselect() %>%
@@ -456,7 +456,12 @@ getValues <- function(session) {
   values$data <- data %>%
     left_join(., row_data)
 
-  values$colorLabels <- colnames(ctx$select(ctx$colors))
+  colors <- ctx$colors
+  if (identical(colors, list())) {
+    values$colorLabels <- c()
+  } else {
+    values$colorLabels <- colnames(ctx$select(colors))
+  }
 
   return(values)
 }
