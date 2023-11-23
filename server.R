@@ -34,7 +34,7 @@ server <- shinyServer(function(input, output, session) {
 
   results <- reactiveValues()
   message <- reactiveValues(text = "")
-  DB <- readRDS("data/db2022.rds")
+  DB <- readRDS("data/231031-86502-87102_UpstreamDb.rds")
 
   dataInput <- reactive({
     getValues(session)
@@ -166,6 +166,12 @@ server <- shinyServer(function(input, output, session) {
             width = 3),
           mainPanel(
             tabsetPanel(
+              tabPanel("Report",
+                       helpText("The table below shows the settings that were used for this analysis."),
+                       dataTableOutput("InfoSettings"),
+                       helpText("The table below shows the summary results of the analysis"),
+                       dataTableOutput("SummaryTable")
+              ),
               tabPanel("Upstream Kinase Score",
                        helpText("This plot shows putative upstream kinases ranked by their Final Score (median) or the value of the Kinase Statistic (median)."),
                        helpText("Each point is the result of an individual analysis with a different rank cut-off for adding upstream kinases for peptides."),
@@ -200,12 +206,6 @@ server <- shinyServer(function(input, output, session) {
 
                          )
                        )
-              ),
-              tabPanel("Report",
-                       helpText("The table below shows the settings that were used for this analysis."),
-                       dataTableOutput("InfoSettings"),
-                       helpText("The table below shows the summary results of the analysis"),
-                       dataTableOutput("SummaryTable")
               )
         # ,
         # tabPanel("Kinase tree",
