@@ -95,9 +95,9 @@ server <- shinyServer(function(input, output, session) {
     properties <- propertiesInput()
 
     if (properties$Kinase_family == "PTK") {
-      kinLabelColors <- ifelse(kinLabelGroup == "TK", "black", "red")
+      kinLabelColors <- ifelse((kinLabelGroup == "TYR") | (kinLabelGroup == "TKL"), "black", "red")
     } else if (properties$Kinase_family == "STK") {
-      kinLabelColors <- ifelse(kinLabelGroup == "TK", "red", "black")
+      kinLabelColors <- ifelse((kinLabelGroup == "TYR") | (kinLabelGroup == "TKL"), "red", "black")
     }
     
     cs + ylab(xax) + theme(axis.text.y = element_text(colour = kinLabelColors))
