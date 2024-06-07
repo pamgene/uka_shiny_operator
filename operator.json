@@ -1,7 +1,7 @@
 {
   "name": "Upstream Kinase Analysis",
   "description": "Converts a list of peptides into a list of kinases.",
-  "tags": ["kinase", "pamgene"],
+  "tags": ["kinase"],
   "authors": ["tercen"],
   "urls": ["https://github.com/pamgene/uka_shiny_operator"],
   "isViewOnly": [false],
