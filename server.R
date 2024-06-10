@@ -34,7 +34,7 @@ server <- shinyServer(function(input, output, session) {
 
   results <- reactiveValues()
   message <- reactiveValues(text = "")
-  DB <- readRDS("data/231031-86502-87102_UpstreamDb.rds") %>% select(-PepProtein_SeqIdentity)
+  DB <- readRDS("data/240516_86312_86402_86412_87102_87202_UpstreamDb.rds") %>% select(-PepProtein_SeqIdentity)
 
   dataInput <- reactive({
     getValues(session)
